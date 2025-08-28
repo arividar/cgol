@@ -19,7 +19,6 @@ fn addWrap(i: usize, delta: i32, max: usize) usize {
 
 pub fn main() !void {
     const stdout_file = std.fs.File{ .handle = 1 }; // stdout is fd 1
-    const stdin_file = std.fs.File{ .handle = 0 };  // stdin is fd 0
     
     // Create a print function for stdout
     const print = struct {
@@ -30,30 +29,48 @@ pub fn main() !void {
         }
     }.print;
     
-    // Simple input reader using allocator for dynamic allocation  
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
-    // Create a readLine function for stdin
-    const readLine = struct {
-        fn readLine(alloc: std.mem.Allocator, _: usize) !?[]u8 {
-            var buf: [1024]u8 = undefined;
-            var pos: usize = 0;
-            while (pos < buf.len - 1) {
-                const bytes_read = try stdin_file.read(buf[pos..pos+1]);
-                if (bytes_read == 0) break;
-                if (buf[pos] == '\n') break;
-                pos += 1;
-            }
-            if (pos == 0) return null;
-            return try alloc.dupe(u8, std.mem.trim(u8, buf[0..pos], " \t\r\n"));
-        }
-    }.readLine;
 
     // Hide cursor now; restore at exit
     try print("\x1b[?25l", .{});
     defer print("\x1b[?25h\x1b[0m\n", .{}) catch {};
+
+    const stdin_file = std.fs.File{ .handle = 0 }; // stdin is fd 0
+    
+    // Simple input reading function
+    const readLine = struct {
+        var input_buffer: [1024]u8 = undefined;
+        var buffer_pos: usize = 0;
+        var buffer_end: usize = 0;
+        
+        fn readLine(alloc: std.mem.Allocator, _: usize) !?[]u8 {
+            var line: [256]u8 = undefined;
+            var line_pos: usize = 0;
+            
+            while (line_pos < line.len - 1) {
+                // Refill buffer if empty
+                if (buffer_pos >= buffer_end) {
+                    buffer_end = try stdin_file.read(input_buffer[0..]);
+                    buffer_pos = 0;
+                    if (buffer_end == 0) {
+                        if (line_pos == 0) return null;
+                        break;
+                    }
+                }
+                
+                const char = input_buffer[buffer_pos];
+                buffer_pos += 1;
+                
+                if (char == '\n') break;
+                line[line_pos] = char;
+                line_pos += 1;
+            }
+            
+            return try alloc.dupe(u8, std.mem.trim(u8, line[0..line_pos], " \t\r\n"));
+        }
+    }.readLine;
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
