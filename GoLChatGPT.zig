@@ -10,17 +10,16 @@ const std = @import("std");
 fn idx(r: usize, c: usize, cols: usize) usize { return r * cols + c; }
 
 fn addWrap(i: usize, delta: i32, max: usize) usize {
-    const m: i64 = @intCast(i64, max);
-    var v: i64 = @intCast(i64, i) + @intCast(i64, delta);
+    const m: i64 = @as(i64, @intCast(max));
+    var v: i64 = @as(i64, @intCast(i)) + @as(i64, @intCast(delta));
     v = @mod(v, m);
     if (v < 0) v += m;
-    return @intCast(usize, v);
+    return @as(usize, @intCast(v));
 }
 
 pub fn main() !void {
-    var stdout_file = std.io.getStdOut();
-    var stdout = stdout_file.writer();
-    var stdin = std.io.getStdIn().reader();
+    const stdout = std.io.getStdout().writer();
+    const stdin = std.io.getStdin().reader();
 
     // Hide cursor now; restore at exit
     try stdout.print("\x1b[?25l", .{});
@@ -61,7 +60,7 @@ pub fn main() !void {
     defer a.free(next);
 
     // Seed RNG & randomize initial state (~35% alive)
-    var prng = std.rand.DefaultPrng.init(@truncate(u64, std.time.nanoTimestamp()));
+    var prng = std.rand.DefaultPrng.init(@truncate(std.time.nanoTimestamp()));
     const rand = prng.random();
     for (grid) |*cell| cell.* = if (rand.float(f64) < 0.35) 1 else 0;
 
@@ -75,7 +74,7 @@ pub fn main() !void {
         for (rows) |r| {
             for (cols) |c| {
                 const alive = grid[idx(r, c, cols)] == 1;
-                if (alive) try stdout.print("\x1b[38;5;46m█", .{}) else try stdout.print(" ", .{});
+                if (alive) try stdout.print("\x1b[38;5;46m\u{2588}", .{}) else try stdout.print(" ", .{});
             }
             try stdout.print("\n", .{});
         }
@@ -101,8 +100,15 @@ pub fn main() !void {
         }
 
         // Swap buffers
-        var tmp = grid; grid = next; next = tmp;
+        const tmp = grid; grid = next; next = tmp;
 
         std.time.sleep(delay_ms * std.time.ns_per_ms);
     }
+}
+
+test "addWrap" {
+    try std.testing.expectEqual(@as(usize, 0), addWrap(0, -1, 10));
+    try std.testing.expectEqual(@as(usize, 9), addWrap(0, -1, 10));
+    try std.testing.expectEqual(@as(usize, 1), addWrap(0, 1, 10));
+    try std.testing.expectEqual(@as(usize, 0), addWrap(9, 1, 10));
 }
