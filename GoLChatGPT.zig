@@ -18,8 +18,8 @@ fn addWrap(i: usize, delta: i32, max: usize) usize {
 }
 
 pub fn main() !void {
-    const stdout = std.io.getStdout().writer();
-    const stdin = std.io.getStdin().reader();
+    const stdout = std.process.getStdOut().writer();
+    const stdin = std.process.getStdIn().reader();
 
     // Hide cursor now; restore at exit
     try stdout.print("\x1b[?25l", .{});
