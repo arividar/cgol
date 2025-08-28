@@ -18,31 +18,61 @@ fn addWrap(i: usize, delta: i32, max: usize) usize {
 }
 
 pub fn main() !void {
-    const stdout = std.process.getStdOut().writer();
-    const stdin = std.process.getStdIn().reader();
+    const stdout_file = std.fs.File{ .handle = 1 }; // stdout is fd 1
+    const stdin_file = std.fs.File{ .handle = 0 };  // stdin is fd 0
+    
+    // Create a print function for stdout
+    const print = struct {
+        fn print(comptime format: []const u8, args: anytype) !void {
+            var buf: [4096]u8 = undefined;
+            const formatted = try std.fmt.bufPrint(buf[0..], format, args);
+            _ = try stdout_file.writeAll(formatted);
+        }
+    }.print;
+    
+    // Simple input reader using allocator for dynamic allocation  
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    
+    // Create a readLine function for stdin
+    const readLine = struct {
+        fn readLine(alloc: std.mem.Allocator, _: usize) !?[]u8 {
+            var buf: [1024]u8 = undefined;
+            var pos: usize = 0;
+            while (pos < buf.len - 1) {
+                const bytes_read = try stdin_file.read(buf[pos..pos+1]);
+                if (bytes_read == 0) break;
+                if (buf[pos] == '\n') break;
+                pos += 1;
+            }
+            if (pos == 0) return null;
+            return try alloc.dupe(u8, std.mem.trim(u8, buf[0..pos], " \t\r\n"));
+        }
+    }.readLine;
 
     // Hide cursor now; restore at exit
-    try stdout.print("\x1b[?25l", .{});
-    defer stdout.print("\x1b[?25h\x1b[0m\n", .{}) catch {};
+    try print("\x1b[?25l", .{});
+    defer print("\x1b[?25h\x1b[0m\n", .{}) catch {};
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const alloc = arena.allocator();
 
-    try stdout.print("Enter rows and cols (e.g., 25 60): ", .{});
-    const line1_opt = try stdin.readUntilDelimiterOrEofAlloc(alloc, '\n', 256);
+    try print("Enter rows and cols (e.g., 25 60): ", .{});
+    const line1_opt = try readLine(alloc, 256);
     const line1 = line1_opt orelse return error.InvalidInput;
     var it = std.mem.tokenizeAny(u8, line1, " \t\r");
     const rows = try std.fmt.parseUnsigned(usize, it.next() orelse return error.InvalidInput, 10);
     const cols = try std.fmt.parseUnsigned(usize, it.next() orelse return error.InvalidInput, 10);
 
-    try stdout.print("Generations to run (0 = infinite): ", .{});
-    const line2_opt = try stdin.readUntilDelimiterOrEofAlloc(alloc, '\n', 128);
+    try print("Generations to run (0 = infinite): ", .{});
+    const line2_opt = try readLine(alloc, 128);
     const line2 = line2_opt orelse return error.InvalidInput;
     const gens = try std.fmt.parseUnsigned(usize, std.mem.trim(u8, line2, " \t\r\n"), 10);
 
-    try stdout.print("Delay per generation in ms [default 80]: ", .{});
-    const line3_opt = try stdin.readUntilDelimiterOrEofAlloc(alloc, '\n', 128);
+    try print("Delay per generation in ms [default 80]: ", .{});
+    const line3_opt = try readLine(alloc, 128);
     var delay_ms: u64 = 80;
     if (line3_opt) |l3| {
         const t = std.mem.trim(u8, l3, " \t\r\n");
@@ -50,9 +80,7 @@ pub fn main() !void {
     }
 
     const count = rows * cols;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const a = gpa.allocator();
+    const a = allocator;
 
     var grid = try a.alloc(u8, count);
     defer a.free(grid);
@@ -60,29 +88,29 @@ pub fn main() !void {
     defer a.free(next);
 
     // Seed RNG & randomize initial state (~35% alive)
-    var prng = std.rand.DefaultPrng.init(@truncate(std.time.nanoTimestamp()));
+    var prng = std.Random.DefaultPrng.init(@as(u64, @truncate(@as(u128, @bitCast(std.time.nanoTimestamp())))));
     const rand = prng.random();
     for (grid) |*cell| cell.* = if (rand.float(f64) < 0.35) 1 else 0;
 
     // Prepare screen: clear & home
-    try stdout.print("\x1b[2J\x1b[H", .{});
+    try print("\x1b[2J\x1b[H", .{});
 
     var gen: usize = 0;
     while (gens == 0 or gen < gens) : (gen += 1) {
         // Draw frame
-        try stdout.print("\x1b[H", .{}); // move cursor home
-        for (rows) |r| {
-            for (cols) |c| {
+        try print("\x1b[H", .{}); // move cursor home
+        for (0..rows) |r| {
+            for (0..cols) |c| {
                 const alive = grid[idx(r, c, cols)] == 1;
-                if (alive) try stdout.print("\x1b[38;5;46m\u{2588}", .{}) else try stdout.print(" ", .{});
+                if (alive) try print("\x1b[38;5;46m\u{2588}", .{}) else try print(" ", .{});
             }
-            try stdout.print("\n", .{});
+            try print("\n", .{});
         }
-        try stdout.print("\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{gen});
+        try print("\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{gen});
 
         // Compute next generation (toroidal wrap)
-        for (rows) |r| {
-            for (cols) |c| {
+        for (0..rows) |r| {
+            for (0..cols) |c| {
                 var n: u8 = 0;
                 var dr: i32 = -1;
                 while (dr <= 1) : (dr += 1) {
@@ -102,7 +130,7 @@ pub fn main() !void {
         // Swap buffers
         const tmp = grid; grid = next; next = tmp;
 
-        std.time.sleep(delay_ms * std.time.ns_per_ms);
+        std.Thread.sleep(delay_ms * std.time.ns_per_ms);
     }
 }
 
