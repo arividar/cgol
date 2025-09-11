@@ -1,0 +1,5 @@
+# Game of Life config
+rows = 20
+cols = 30
+generations = 200
+delay_ms = 10

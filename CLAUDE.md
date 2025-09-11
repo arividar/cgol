@@ -4,18 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Conway's Game of Life implementation written in Zig. The project consists of a single file (`GoLChatGPT.zig`) that implements an interactive, terminal-based Game of Life simulator with toroidal wrapping.
+This is a Conway's Game of Life implementation written in Zig. The project consists of a single file (`cgol.zig`) that implements an interactive, terminal-based Game of Life simulator with toroidal wrapping.
 
 ## Build and Development Commands
 
 ### Building the Project
 ```bash
-zig build-exe -O ReleaseSafe GoLChatGPT.zig
+zig build
 ```
 
 ### Running the Application
 ```bash
-./game_of_life
+zig build run
 ```
 
 The application will prompt for:

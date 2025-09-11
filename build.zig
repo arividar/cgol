@@ -5,13 +5,13 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const root_mod = b.createModule(.{
-        .root_source_file = b.path("GoLChatGPT.zig"),
+        .root_source_file = b.path("cgol.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const exe = b.addExecutable(.{
-        .name = "GoLChatGPT",
+        .name = "cgol",
         .root_module = root_mod,
     });
 
