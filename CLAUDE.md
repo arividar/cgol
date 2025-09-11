@@ -10,18 +10,54 @@ This is a Conway's Game of Life implementation written in Zig. The project consi
 
 ### Building the Project
 ```bash
-zig build
+zig build                              # Debug build
+zig build -Doptimize=ReleaseSafe      # Release build
+zig build install                     # Install to zig-out/bin/cgol
 ```
 
 ### Running the Application
 ```bash
-zig build run
+zig build run                         # Run via build system
+zig build run -- -p                   # Force prompts (--prompt-user-for-config)
+./zig-out/bin/cgol                    # Run installed binary
 ```
 
-The application will prompt for:
-- Grid dimensions (rows and columns)
-- Number of generations to run (0 = infinite)
-- Animation delay in milliseconds (default: 80ms)
+### Running Tests
+```bash
+zig build test
+```
+
+### Code Formatting
+```bash
+zig fmt .                             # Format all Zig files
+```
+
+### Configuration
+The application will prompt for missing values or you can provide them via:
+
+#### Configuration File (`cgol.toml`)
+```toml
+# Game of Life config
+rows = 40
+cols = 60
+generations = 0    # 0 = infinite
+delay_ms = 100
+```
+
+#### Command Line Options
+```bash
+# Named flags
+cgol --height 40 --width 60 --generations 100 --delay 80
+cgol --height=40 --width=60 --generations=100 --delay=80
+
+# Positional arguments
+cgol 40 60 100 80    # rows cols generations delay_ms
+```
+
+**Flag Options:**
+- `--height <rows>` / `--width <cols>` — Set board dimensions
+- `--generations <n>` — Number of generations (0 = infinite)
+- `--delay <ms>` — Delay between generations in milliseconds
 
 ## Code Architecture
 
@@ -46,3 +82,19 @@ The implementation is self-contained in a single Zig file with these key compone
 - Implements toroidal topology (edges wrap around)
 - Memory-efficient double-buffering approach
 - Arena allocator for temporary allocations, GeneralPurposeAllocator for grid data
+- Single-file implementation using only Zig standard library
+- Terminal size detection for optimal display
+- Configuration auto-saves to `cgol.toml` after prompts
+
+## Development Guidelines
+
+### Code Style
+- Use `zig fmt` before committing (4 spaces, no tabs)
+- Types: `UpperCamelCase`; functions/vars/consts: `lowerCamelCase`
+- Prefer explicit types (`u8`, `usize`) and `const` over `var`
+- Keep functions small and isolate I/O from logic
+
+### Testing
+- Use inline `test { ... }` blocks colocated with code
+- Add unit tests for pure helper functions
+- Run `zig build test` locally before commits
