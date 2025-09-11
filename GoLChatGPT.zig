@@ -151,7 +151,7 @@ pub fn main() !void {
         for (0..rows) |r| {
             for (0..cols) |c| {
                 const alive = grid[idx(r, c, cols)] == 1;
-                if (alive) try print("\x1b[38;5;46m\u{2588}", .{}) else try print(" ", .{});
+                if (alive) try print("\x1b[38;5;46m\u{2588}\u{2588}", .{}) else try print("  ", .{});
             }
             try print("\n", .{});
         }
