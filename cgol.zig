@@ -330,10 +330,10 @@ pub fn main() !void {
     rows = rows_adj;
     cols = cols_adj;
 
-    // Compute padding to center the grid
-    const vert_pad = if (term.rows > rows + 1) (term.rows - 1 - rows) / 2 else 0;
+    // Compute padding to center the grid (accounting for frame)
+    const vert_pad = if (term.rows > rows + 3) (term.rows - 3 - rows) / 2 else 0; // +3 for top/bottom frame + status
     const horiz_pad_chars = blk: {
-        const needed = cols * 2;
+        const needed = cols * 2 + 4; // +4 for left/right frame (2 chars each)
         if (term.cols > needed) break :blk (term.cols - needed) / 2 else break :blk 0;
     };
 
@@ -342,17 +342,35 @@ pub fn main() !void {
 
     var gen: usize = 0;
     while (gens == 0 or gen < gens) : (gen += 1) {
-        // Draw frame
+        // Draw top frame
+        try print("\x1b[{d};{d}H\x1b[0m\u{250C}", .{ vert_pad + 1, horiz_pad_chars + 1 });
+        for (0..cols) |_| {
+            try print("\u{2500}\u{2500}", .{});
+        }
+        try print("\u{2510}", .{});
+        
+        // Draw grid with side frames
         for (0..rows) |r| {
-            // Position cursor at start of this row within centered area
-            try print("\x1b[{d};{d}H", .{ vert_pad + 1 + r, horiz_pad_chars + 1 });
+            // Position cursor and draw left frame
+            try print("\x1b[{d};{d}H\x1b[0m\u{2502} ", .{ vert_pad + 2 + r, horiz_pad_chars + 1 });
+            // Draw grid row
             for (0..cols) |c| {
                 const alive = grid[idx(r, c, cols)] == 1;
                 if (alive) try print("\x1b[38;5;46m\u{2588}\u{2588}", .{}) else try print("  ", .{});
             }
+            // Draw right frame
+            try print("\x1b[0m \u{2502}", .{});
         }
-        // Status line below the grid
-        try print("\x1b[{d};1H\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{ vert_pad + rows + 1, gen + 1 });
+        
+        // Draw bottom frame
+        try print("\x1b[{d};{d}H\x1b[0m\u{2514}", .{ vert_pad + 2 + rows, horiz_pad_chars + 1 });
+        for (0..cols) |_| {
+            try print("\u{2500}\u{2500}", .{});
+        }
+        try print("\u{2518}", .{});
+        
+        // Status line below the frame
+        try print("\x1b[{d};1H\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{ vert_pad + 3 + rows, gen + 1 });
 
         // Compute next generation (toroidal wrap)
         stepGrid(grid, rows, cols, next);
