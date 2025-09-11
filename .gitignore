@@ -1,6 +1,7 @@
 # Zig build outputs
+.zig-cache/
 zig-out/
-zig-cache/
+gol.toml
 
 # Compiled binaries
 *.exe
