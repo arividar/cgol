@@ -39,3 +39,15 @@ Notes: Target Zig 0.15.1+ (see history). If you change source layout or names, u
 - Single-file terminal app using ANSI escape codes, toroidal grid wrap, RNG seeding, and `std.Thread.sleep` for pacing.
 - Avoid introducing external deps; stick to Zig standard library.
 - Terminal must support ANSI; Ctrl+C exits. No secrets/config required.
+
+## Configuration
+- File: `gol.toml` in repo root. Missing or partial values trigger prompts; complete files skip prompts.
+- Keys: `rows` (usize), `cols` (usize), `generations` (u64, 0=infinite), `delay_ms` (u64).
+- Example:
+  ```toml
+  rows = 40
+  cols = 60
+  generations = 100
+  delay_ms = 100
+  ```
+- Update behavior: the app writes a full `gol.toml` after resolving values. Delete the file to re-prompt.
