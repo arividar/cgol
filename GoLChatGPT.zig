@@ -83,14 +83,19 @@ pub fn main() !void {
     const rows = try std.fmt.parseUnsigned(usize, it.next() orelse return error.InvalidInput, 10);
     const cols = try std.fmt.parseUnsigned(usize, it.next() orelse return error.InvalidInput, 10);
 
-    try print("Generations to run (0 = infinite): ", .{});
+    try print("Generations to run (0 = infinite, default=100): ", .{});
     const line2_opt = try readLine(alloc, 128);
     const line2 = line2_opt orelse return error.InvalidInput;
-    const gens = try std.fmt.parseUnsigned(usize, std.mem.trim(u8, line2, " \t\r\n"), 10);
+    var gens: u64 = 100;
+    if (line2_opt) |l2| {
+        const t = std.mem.trim(u8, l2, " \t\r\n");
+        if (t.len != 0) 
+            gens = try std.fmt.parseUnsigned(usize, std.mem.trim(u8, line2, " \t\r\n"), 10);
+    }
 
-    try print("Delay per generation in ms [default 80]: ", .{});
+    try print("Delay per generation in ms [default 100]: ", .{});
     const line3_opt = try readLine(alloc, 128);
-    var delay_ms: u64 = 80;
+    var delay_ms: u64 = 100;
     if (line3_opt) |l3| {
         const t = std.mem.trim(u8, l3, " \t\r\n");
         if (t.len != 0) delay_ms = try std.fmt.parseUnsigned(u64, t, 10);
@@ -123,7 +128,7 @@ pub fn main() !void {
             }
             try print("\n", .{});
         }
-        try print("\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{gen});
+        try print("\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{gen+1});
 
         // Compute next generation (toroidal wrap)
         for (0..rows) |r| {
