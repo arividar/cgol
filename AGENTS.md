@@ -42,7 +42,7 @@ Notes: Target Zig 0.15.1+ (see history). If you change source layout or names, u
 - Terminal must support ANSI; Ctrl+C exits. No secrets/config required.
 
 ## Configuration
-- File: `gol.toml` in repo root. Missing or partial values trigger prompts; complete files skip prompts.
+- File: `cgol.toml` in repo root. Missing or partial values trigger prompts; complete files skip prompts.
 - Keys: `rows` (usize), `cols` (usize), `generations` (u64, 0=infinite), `delay_ms` (u64).
 - Example:
   ```toml
@@ -51,4 +51,10 @@ Notes: Target Zig 0.15.1+ (see history). If you change source layout or names, u
   generations = 100
   delay_ms = 100
   ```
-- Update behavior: the app writes a full `gol.toml` after resolving values. Delete the file to re-prompt.
+- Update behavior: the app writes a full `cgol.toml` after resolving values. Delete the file to re-prompt.
+
+## CLI Options
+- `--height <rows>` / `--width <cols>` — set board size.
+- `--generations <n>` — 0 for infinite.
+- `--delay <ms>` — delay per generation in milliseconds.
+- Positional form: `cgol <rows> <cols> <generations> <delay>` (e.g., `cgol 30 15 50 40`).

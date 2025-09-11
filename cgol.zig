@@ -133,18 +133,67 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // Parse CLI flags
+    // Parse CLI flags and ordered params
     var force_prompt: bool = false;
+    var o_rows: ?usize = null;
+    var o_cols: ?usize = null;
+    var o_gens: ?u64 = null;
+    var o_delay: ?u64 = null;
     {
         const args = try std.process.argsAlloc(allocator);
         defer std.process.argsFree(allocator, args);
+        var pos_vals: [4]u64 = undefined;
+        var pos_count: usize = 0;
         var i: usize = 1; // skip program name
         while (i < args.len) : (i += 1) {
             const a = args[i];
             if (std.mem.eql(u8, a, "--prompt-user-for-config") or std.mem.eql(u8, a, "-p")) {
                 force_prompt = true;
+                continue;
+            }
+            if (std.mem.eql(u8, a, "--height")) {
+                if (i + 1 < args.len) {
+                    o_rows = std.fmt.parseUnsigned(usize, args[i + 1], 10) catch null;
+                    i += 1;
+                }
+                continue;
+            }
+            if (std.mem.eql(u8, a, "--width")) {
+                if (i + 1 < args.len) {
+                    o_cols = std.fmt.parseUnsigned(usize, args[i + 1], 10) catch null;
+                    i += 1;
+                }
+                continue;
+            }
+            if (std.mem.eql(u8, a, "--generations")) {
+                if (i + 1 < args.len) {
+                    o_gens = std.fmt.parseUnsigned(u64, args[i + 1], 10) catch null;
+                    i += 1;
+                }
+                continue;
+            }
+            if (std.mem.eql(u8, a, "--delay")) {
+                if (i + 1 < args.len) {
+                    o_delay = std.fmt.parseUnsigned(u64, args[i + 1], 10) catch null;
+                    i += 1;
+                }
+                continue;
+            }
+            if (a.len > 0 and a[0] != '-') {
+                if (pos_count < pos_vals.len) {
+                    if (std.fmt.parseUnsigned(u64, a, 10)) |v| {
+                        pos_vals[pos_count] = v;
+                        pos_count += 1;
+                    } else |_| {}
+                }
+                continue;
             }
         }
+        // Apply positional ordered params: height width generations delay
+        if (pos_count > 0 and o_rows == null) o_rows = @as(usize, @intCast(pos_vals[0]));
+        if (pos_count > 1 and o_cols == null) o_cols = @as(usize, @intCast(pos_vals[1]));
+        if (pos_count > 2 and o_gens == null) o_gens = pos_vals[2];
+        if (pos_count > 3 and o_delay == null) o_delay = pos_vals[3];
     }
 
     // Hide cursor now; restore at exit
@@ -192,9 +241,11 @@ pub fn main() !void {
 
     // Load configuration; prompt only for missing fields unless forced by CLI
     const cfg = if (force_prompt) ConfigPartial{} else loadConfig(alloc);
-    var rows: usize = cfg.rows orelse 40;
-    var cols: usize = cfg.cols orelse 60;
-    const need_prompt_rows_cols = force_prompt or (cfg.rows == null or cfg.cols == null);
+    var rows: usize = o_rows orelse (cfg.rows orelse 40);
+    var cols: usize = o_cols orelse (cfg.cols orelse 60);
+    const have_rows = (o_rows != null) or (cfg.rows != null);
+    const have_cols = (o_cols != null) or (cfg.cols != null);
+    const need_prompt_rows_cols = (force_prompt and !(o_rows != null and o_cols != null)) or (!have_rows or !have_cols);
     if (need_prompt_rows_cols) {
         try print("Enter rows and cols (e.g., 25 60) [default {d} {d}]: ", .{rows, cols});
         const line1_opt = try readLine(alloc, 256);
@@ -208,8 +259,8 @@ pub fn main() !void {
         }
     }
 
-    var gens: u64 = cfg.generations orelse 100;
-    if (force_prompt or cfg.generations == null) {
+    var gens: u64 = o_gens orelse (cfg.generations orelse 100);
+    if ((force_prompt and o_gens == null) or (cfg.generations == null and o_gens == null)) {
         try print("Generations to run (0 = infinite, default={d}): ", .{gens});
         const line2_opt = try readLine(alloc, 128);
         if (line2_opt) |l2| {
@@ -218,8 +269,8 @@ pub fn main() !void {
         }
     }
 
-    var delay_ms: u64 = cfg.delay_ms orelse 100;
-    if (force_prompt or cfg.delay_ms == null) {
+    var delay_ms: u64 = o_delay orelse (cfg.delay_ms orelse 100);
+    if ((force_prompt and o_delay == null) or (cfg.delay_ms == null and o_delay == null)) {
         try print("Delay per generation in ms [default {d}]: ", .{delay_ms});
         const line3_opt = try readLine(alloc, 128);
         if (line3_opt) |l3| {
