@@ -65,8 +65,13 @@ fn writeConfig(rows: usize, cols: usize, generations: u64, delay_ms: u64) !void 
     const cwd = std.fs.cwd();
     var file = try cwd.createFile("gol.toml", .{ .truncate = true });
     defer file.close();
-    const w = file.writer();
-    try w.print("# Game of Life config\nrows = {d}\ncols = {d}\ngenerations = {d}\ndelay_ms = {d}\n", .{ rows, cols, generations, delay_ms });
+    var buf: [256]u8 = undefined;
+    const out = try std.fmt.bufPrint(
+        &buf,
+        "# Game of Life config\nrows = {d}\ncols = {d}\ngenerations = {d}\ndelay_ms = {d}\n",
+        .{ rows, cols, generations, delay_ms },
+    );
+    try file.writeAll(out);
 }
 
 fn neighborCount(grid: []const u8, rows: usize, cols: usize, r: usize, c: usize) u8 {
