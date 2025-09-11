@@ -6,6 +6,7 @@
 //            → Optional delay per generation in ms (default 100)
 
 const std = @import("std");
+const posix = std.posix;
 
 fn idx(r: usize, c: usize, cols: usize) usize { return r * cols + c; }
 
@@ -15,6 +16,21 @@ fn addWrap(i: usize, delta: i32, max: usize) usize {
     v = @mod(v, m);
     if (v < 0) v += m;
     return @as(usize, @intCast(v));
+}
+
+const TermSize = struct { rows: usize, cols: usize };
+
+fn getTermSize() TermSize {
+    // Default conservative guess
+    var ts: TermSize = .{ .rows = 25, .cols = 80 };
+    var wsz: posix.winsize = .{ .row = 0, .col = 0, .xpixel = 0, .ypixel = 0 };
+    const fd: posix.fd_t = 1; // stdout
+    const rc = posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&wsz));
+    if (posix.errno(rc) == .SUCCESS and wsz.row != 0 and wsz.col != 0) {
+        ts.rows = wsz.row;
+        ts.cols = wsz.col;
+    }
+    return ts;
 }
 
 const ConfigPartial = struct {
@@ -228,21 +244,44 @@ pub fn main() !void {
     const rand = prng.random();
     for (grid) |*cell| cell.* = if (rand.float(f64) < 0.35) 1 else 0;
 
-    // Prepare screen: clear & home
-    try print("\x1b[2J\x1b[H", .{});
+    // Determine terminal size and adjust/center grid
+    const term = getTermSize();
+    const max_rows = if (term.rows > 1) term.rows - 1 else 1; // leave one line for status
+    var max_cols_cells = term.cols / 2; // two characters per cell
+    if (max_cols_cells == 0) max_cols_cells = 1;
+
+    var rows_adj = rows;
+    var cols_adj = cols;
+    if (rows_adj > max_rows) rows_adj = max_rows;
+    if (cols_adj > max_cols_cells) cols_adj = max_cols_cells;
+
+    // Reassign working dimensions
+    rows = rows_adj;
+    cols = cols_adj;
+
+    // Compute padding to center the grid
+    const vert_pad = if (term.rows > rows + 1) (term.rows - 1 - rows) / 2 else 0;
+    const horiz_pad_chars = blk: {
+        const needed = cols * 2;
+        if (term.cols > needed) break :blk (term.cols - needed) / 2 else break :blk 0;
+    };
+
+    // Prepare screen: clear
+    try print("\x1b[2J", .{});
 
     var gen: usize = 0;
     while (gens == 0 or gen < gens) : (gen += 1) {
         // Draw frame
-        try print("\x1b[H", .{}); // move cursor home
         for (0..rows) |r| {
+            // Position cursor at start of this row within centered area
+            try print("\x1b[{d};{d}H", .{ vert_pad + 1 + r, horiz_pad_chars + 1 });
             for (0..cols) |c| {
                 const alive = grid[idx(r, c, cols)] == 1;
                 if (alive) try print("\x1b[38;5;46m\u{2588}\u{2588}", .{}) else try print("  ", .{});
             }
-            try print("\n", .{});
         }
-        try print("\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{gen+1});
+        // Status line below the grid
+        try print("\x1b[{d};1H\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{ vert_pad + rows + 1, gen + 1 });
 
         // Compute next generation (toroidal wrap)
         stepGrid(grid, rows, cols, next);
