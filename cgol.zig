@@ -352,8 +352,9 @@ pub fn main() !void {
         // Draw grid with side frames
         for (0..rows) |r| {
             // Position cursor and draw left frame
-            try print("\x1b[{d};{d}H\x1b[0m\u{2502} ", .{ vert_pad + 2 + r, horiz_pad_chars + 1 });
-            // Draw grid row
+            try print("\x1b[{d};{d}H\x1b[0m\u{2502}", .{ vert_pad + 2 + r, horiz_pad_chars + 1 });
+            // Draw grid row with padding
+            try print(" ", .{});
             for (0..cols) |c| {
                 const alive = grid[idx(r, c, cols)] == 1;
                 if (alive) try print("\x1b[38;5;46m\u{2588}\u{2588}", .{}) else try print("  ", .{});
