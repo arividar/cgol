@@ -103,12 +103,20 @@ pub fn main() !void {
     defer arena.deinit();
     const alloc = arena.allocator();
 
-    try print("Enter rows and cols (e.g., 25 60): ", .{});
+    try print("Enter rows and cols (e.g., 25 60) [default 40 60]: ", .{});
     const line1_opt = try readLine(alloc, 256);
-    const line1 = line1_opt orelse return error.InvalidInput;
-    var it = std.mem.tokenizeAny(u8, line1, " \t\r");
-    const rows = try std.fmt.parseUnsigned(usize, it.next() orelse return error.InvalidInput, 10);
-    const cols = try std.fmt.parseUnsigned(usize, it.next() orelse return error.InvalidInput, 10);
+    var rows: usize = 40;
+    var cols: usize = 60;
+    if (line1_opt) |line1_raw| {
+        const line1 = std.mem.trim(u8, line1_raw, " \t\r\n");
+        if (line1.len != 0) {
+            var it = std.mem.tokenizeAny(u8, line1, " \t\r");
+            const rows_s = it.next() orelse return error.InvalidInput;
+            const cols_s = it.next() orelse return error.InvalidInput;
+            rows = try std.fmt.parseUnsigned(usize, rows_s, 10);
+            cols = try std.fmt.parseUnsigned(usize, cols_s, 10);
+        }
+    }
 
     try print("Generations to run (0 = infinite, default=100): ", .{});
     const line2_opt = try readLine(alloc, 128);
