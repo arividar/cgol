@@ -344,10 +344,11 @@ pub fn main() !void {
     while (gens == 0 or gen < gens) : (gen += 1) {
         // Draw top frame
         try print("\x1b[{d};{d}H\x1b[0m\u{250C}", .{ vert_pad + 1, horiz_pad_chars + 1 });
+        try print("\u{2500}", .{}); // padding space
         for (0..cols) |_| {
             try print("\u{2500}\u{2500}", .{});
         }
-        try print("\u{2510}", .{});
+        try print("\u{2500}\u{2510}", .{}); // padding space + corner
         
         // Draw grid with side frames
         for (0..rows) |r| {
@@ -365,10 +366,11 @@ pub fn main() !void {
         
         // Draw bottom frame
         try print("\x1b[{d};{d}H\x1b[0m\u{2514}", .{ vert_pad + 2 + rows, horiz_pad_chars + 1 });
+        try print("\u{2500}", .{}); // padding space
         for (0..cols) |_| {
             try print("\u{2500}\u{2500}", .{});
         }
-        try print("\u{2518}", .{});
+        try print("\u{2500}\u{2518}", .{}); // padding space + corner
         
         // Status line below the frame
         try print("\x1b[{d};1H\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{ vert_pad + 3 + rows, gen + 1 });
