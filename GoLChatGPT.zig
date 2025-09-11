@@ -17,6 +17,58 @@ fn addWrap(i: usize, delta: i32, max: usize) usize {
     return @as(usize, @intCast(v));
 }
 
+const ConfigPartial = struct {
+    rows: ?usize = null,
+    cols: ?usize = null,
+    generations: ?u64 = null,
+    delay_ms: ?u64 = null,
+};
+
+fn loadConfig(alloc: std.mem.Allocator) ConfigPartial {
+    var result: ConfigPartial = .{};
+    const cwd = std.fs.cwd();
+    const file = cwd.openFile("gol.toml", .{}) catch return result;
+    defer file.close();
+
+    const buf = file.readToEndAlloc(alloc, 64 * 1024) catch return result;
+    defer alloc.free(buf);
+
+    var it = std.mem.splitScalar(u8, buf, '\n');
+    while (it.next()) |raw_line| {
+        const line = std.mem.trim(u8, raw_line, " \t\r");
+        if (line.len == 0 or line[0] == '#') continue;
+        const eq_idx_opt = std.mem.indexOfScalar(u8, line, '=');
+        if (eq_idx_opt == null) continue;
+        const i = eq_idx_opt.?;
+        const key = std.mem.trim(u8, line[0..i], " \t");
+        const val_str = std.mem.trim(u8, line[i+1..], " \t");
+        if (val_str.len == 0) continue;
+        // parse unsigned integer values only
+        if (std.mem.eql(u8, key, "rows")) {
+            const v = std.fmt.parseUnsigned(usize, val_str, 10) catch continue;
+            result.rows = v;
+        } else if (std.mem.eql(u8, key, "cols")) {
+            const v = std.fmt.parseUnsigned(usize, val_str, 10) catch continue;
+            result.cols = v;
+        } else if (std.mem.eql(u8, key, "generations")) {
+            const v = std.fmt.parseUnsigned(u64, val_str, 10) catch continue;
+            result.generations = v;
+        } else if (std.mem.eql(u8, key, "delay_ms")) {
+            const v = std.fmt.parseUnsigned(u64, val_str, 10) catch continue;
+            result.delay_ms = v;
+        }
+    }
+    return result;
+}
+
+fn writeConfig(rows: usize, cols: usize, generations: u64, delay_ms: u64) !void {
+    const cwd = std.fs.cwd();
+    var file = try cwd.createFile("gol.toml", .{ .truncate = true });
+    defer file.close();
+    const w = file.writer();
+    try w.print("# Game of Life config\nrows = {d}\ncols = {d}\ngenerations = {d}\ndelay_ms = {d}\n", .{ rows, cols, generations, delay_ms });
+}
+
 fn neighborCount(grid: []const u8, rows: usize, cols: usize, r: usize, c: usize) u8 {
     var n: u8 = 0;
     var dr: i32 = -1;
@@ -103,38 +155,46 @@ pub fn main() !void {
     defer arena.deinit();
     const alloc = arena.allocator();
 
-    try print("Enter rows and cols (e.g., 25 60) [default 40 60]: ", .{});
-    const line1_opt = try readLine(alloc, 256);
-    var rows: usize = 40;
-    var cols: usize = 60;
-    if (line1_opt) |line1_raw| {
-        const line1 = std.mem.trim(u8, line1_raw, " \t\r\n");
-        if (line1.len != 0) {
-            var it = std.mem.tokenizeAny(u8, line1, " \t\r");
-            const rows_s = it.next() orelse return error.InvalidInput;
-            const cols_s = it.next() orelse return error.InvalidInput;
-            rows = try std.fmt.parseUnsigned(usize, rows_s, 10);
-            cols = try std.fmt.parseUnsigned(usize, cols_s, 10);
+    // Load configuration; prompt only for missing fields
+    const cfg = loadConfig(alloc);
+    var rows: usize = cfg.rows orelse 40;
+    var cols: usize = cfg.cols orelse 60;
+    const need_prompt_rows_cols = (cfg.rows == null or cfg.cols == null);
+    if (need_prompt_rows_cols) {
+        try print("Enter rows and cols (e.g., 25 60) [default {d} {d}]: ", .{rows, cols});
+        const line1_opt = try readLine(alloc, 256);
+        if (line1_opt) |line1_raw| {
+            const line1 = std.mem.trim(u8, line1_raw, " \t\r\n");
+            if (line1.len != 0) {
+                var it1 = std.mem.tokenizeAny(u8, line1, " \t\r");
+                if (it1.next()) |rows_s| rows = try std.fmt.parseUnsigned(usize, rows_s, 10);
+                if (it1.next()) |cols_s| cols = try std.fmt.parseUnsigned(usize, cols_s, 10);
+            }
         }
     }
 
-    try print("Generations to run (0 = infinite, default=100): ", .{});
-    const line2_opt = try readLine(alloc, 128);
-    const line2 = line2_opt orelse return error.InvalidInput;
-    var gens: u64 = 100;
-    if (line2_opt) |l2| {
-        const t = std.mem.trim(u8, l2, " \t\r\n");
-        if (t.len != 0) 
-            gens = try std.fmt.parseUnsigned(usize, std.mem.trim(u8, line2, " \t\r\n"), 10);
+    var gens: u64 = cfg.generations orelse 100;
+    if (cfg.generations == null) {
+        try print("Generations to run (0 = infinite, default={d}): ", .{gens});
+        const line2_opt = try readLine(alloc, 128);
+        if (line2_opt) |l2| {
+            const t = std.mem.trim(u8, l2, " \t\r\n");
+            if (t.len != 0) gens = try std.fmt.parseUnsigned(u64, t, 10);
+        }
     }
 
-    try print("Delay per generation in ms [default 100]: ", .{});
-    const line3_opt = try readLine(alloc, 128);
-    var delay_ms: u64 = 100;
-    if (line3_opt) |l3| {
-        const t = std.mem.trim(u8, l3, " \t\r\n");
-        if (t.len != 0) delay_ms = try std.fmt.parseUnsigned(u64, t, 10);
+    var delay_ms: u64 = cfg.delay_ms orelse 100;
+    if (cfg.delay_ms == null) {
+        try print("Delay per generation in ms [default {d}]: ", .{delay_ms});
+        const line3_opt = try readLine(alloc, 128);
+        if (line3_opt) |l3| {
+            const t = std.mem.trim(u8, l3, " \t\r\n");
+            if (t.len != 0) delay_ms = try std.fmt.parseUnsigned(u64, t, 10);
+        }
     }
+
+    // Persist full config so future runs do not prompt
+    writeConfig(rows, cols, gens, delay_ms) catch {};
 
     const count = rows * cols;
     const a = allocator;
