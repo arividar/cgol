@@ -27,7 +27,7 @@ const ConfigPartial = struct {
 fn loadConfig(alloc: std.mem.Allocator) ConfigPartial {
     var result: ConfigPartial = .{};
     const cwd = std.fs.cwd();
-    const file = cwd.openFile("gol.toml", .{}) catch return result;
+    const file = cwd.openFile("cgol.toml", .{}) catch return result;
     defer file.close();
 
     const buf = file.readToEndAlloc(alloc, 64 * 1024) catch return result;
@@ -63,7 +63,7 @@ fn loadConfig(alloc: std.mem.Allocator) ConfigPartial {
 
 fn writeConfig(rows: usize, cols: usize, generations: u64, delay_ms: u64) !void {
     const cwd = std.fs.cwd();
-    var file = try cwd.createFile("gol.toml", .{ .truncate = true });
+    var file = try cwd.createFile("cgol.toml", .{ .truncate = true });
     defer file.close();
     var buf: [256]u8 = undefined;
     const out = try std.fmt.bufPrint(
