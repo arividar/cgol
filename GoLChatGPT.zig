@@ -112,6 +112,20 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
+    // Parse CLI flags
+    var force_prompt: bool = false;
+    {
+        const args = try std.process.argsAlloc(allocator);
+        defer std.process.argsFree(allocator, args);
+        var i: usize = 1; // skip program name
+        while (i < args.len) : (i += 1) {
+            const a = args[i];
+            if (std.mem.eql(u8, a, "--prompt-user-for-config") or std.mem.eql(u8, a, "-p")) {
+                force_prompt = true;
+            }
+        }
+    }
+
     // Hide cursor now; restore at exit
     try print("\x1b[?25l", .{});
     defer print("\x1b[?25h\x1b[0m\n", .{}) catch {};
@@ -155,11 +169,11 @@ pub fn main() !void {
     defer arena.deinit();
     const alloc = arena.allocator();
 
-    // Load configuration; prompt only for missing fields
-    const cfg = loadConfig(alloc);
+    // Load configuration; prompt only for missing fields unless forced by CLI
+    const cfg = if (force_prompt) ConfigPartial{} else loadConfig(alloc);
     var rows: usize = cfg.rows orelse 40;
     var cols: usize = cfg.cols orelse 60;
-    const need_prompt_rows_cols = (cfg.rows == null or cfg.cols == null);
+    const need_prompt_rows_cols = force_prompt or (cfg.rows == null or cfg.cols == null);
     if (need_prompt_rows_cols) {
         try print("Enter rows and cols (e.g., 25 60) [default {d} {d}]: ", .{rows, cols});
         const line1_opt = try readLine(alloc, 256);
@@ -174,7 +188,7 @@ pub fn main() !void {
     }
 
     var gens: u64 = cfg.generations orelse 100;
-    if (cfg.generations == null) {
+    if (force_prompt or cfg.generations == null) {
         try print("Generations to run (0 = infinite, default={d}): ", .{gens});
         const line2_opt = try readLine(alloc, 128);
         if (line2_opt) |l2| {
@@ -184,7 +198,7 @@ pub fn main() !void {
     }
 
     var delay_ms: u64 = cfg.delay_ms orelse 100;
-    if (cfg.delay_ms == null) {
+    if (force_prompt or cfg.delay_ms == null) {
         try print("Delay per generation in ms [default {d}]: ", .{delay_ms});
         const line3_opt = try readLine(alloc, 128);
         if (line3_opt) |l3| {

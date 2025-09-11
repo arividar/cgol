@@ -11,6 +11,7 @@
 - Build (release): `zig build -Doptimize=ReleaseSafe`
 - Install binary: `zig build install` (outputs to `zig-out/bin/GoLChatGPT`)
 - Run via build: `zig build run`
+- Run with prompts forced: `zig build run -- -p` (or `--prompt-user-for-config`)
 - Run installed binary: `./zig-out/bin/GoLChatGPT`
 - Tests: `zig build test`
 - Format: `zig fmt .`
