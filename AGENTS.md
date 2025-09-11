@@ -54,7 +54,7 @@ Notes: Target Zig 0.15.1+ (see history). If you change source layout or names, u
 - Update behavior: the app writes a full `cgol.toml` after resolving values. Delete the file to re-prompt.
 
 ## CLI Options
-- `--height <rows>` / `--width <cols>` — set board size.
-- `--generations <n>` — 0 for infinite.
-- `--delay <ms>` — delay per generation in milliseconds.
+- `--height <rows>` / `--width <cols>` — set board size (also supports `--height=40`, `--width=60`).
+- `--generations <n>` — 0 for infinite (also `--generations=0`).
+- `--delay <ms>` — delay per generation in milliseconds (also `--delay=120`).
 - Positional form: `cgol <rows> <cols> <generations> <delay>` (e.g., `cgol 30 15 50 40`).

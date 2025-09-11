@@ -151,11 +151,21 @@ pub fn main() !void {
                 force_prompt = true;
                 continue;
             }
+            if (std.mem.startsWith(u8, a, "--height=")) {
+                const vstr = a["--height=".len..];
+                o_rows = std.fmt.parseUnsigned(usize, vstr, 10) catch null;
+                continue;
+            }
             if (std.mem.eql(u8, a, "--height")) {
                 if (i + 1 < args.len) {
                     o_rows = std.fmt.parseUnsigned(usize, args[i + 1], 10) catch null;
                     i += 1;
                 }
+                continue;
+            }
+            if (std.mem.startsWith(u8, a, "--width=")) {
+                const vstr = a["--width=".len..];
+                o_cols = std.fmt.parseUnsigned(usize, vstr, 10) catch null;
                 continue;
             }
             if (std.mem.eql(u8, a, "--width")) {
@@ -165,11 +175,21 @@ pub fn main() !void {
                 }
                 continue;
             }
+            if (std.mem.startsWith(u8, a, "--generations=")) {
+                const vstr = a["--generations=".len..];
+                o_gens = std.fmt.parseUnsigned(u64, vstr, 10) catch null;
+                continue;
+            }
             if (std.mem.eql(u8, a, "--generations")) {
                 if (i + 1 < args.len) {
                     o_gens = std.fmt.parseUnsigned(u64, args[i + 1], 10) catch null;
                     i += 1;
                 }
+                continue;
+            }
+            if (std.mem.startsWith(u8, a, "--delay=")) {
+                const vstr = a["--delay=".len..];
+                o_delay = std.fmt.parseUnsigned(u64, vstr, 10) catch null;
                 continue;
             }
             if (std.mem.eql(u8, a, "--delay")) {
