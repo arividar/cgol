@@ -317,23 +317,20 @@ pub fn main() !void {
 
     // Determine terminal size and adjust/center grid
     const term = getTermSize();
-    const max_rows = if (term.rows > 1) term.rows - 1 else 1; // leave one line for status
-    var max_cols_cells = term.cols / 2; // two characters per cell
+    // Cells must fit within: top frame + rows + bottom frame + status = rows + 3 lines
+    const max_rows_cells: usize = if (term.rows > 3) term.rows - 3 else 1;
+    // Each cell is 2 chars wide; plus left/right frame and one space padding on each side = +4
+    var max_cols_cells: usize = if (term.cols > 4) (term.cols - 4) / 2 else 1;
     if (max_cols_cells == 0) max_cols_cells = 1;
 
-    var rows_adj = rows;
-    var cols_adj = cols;
-    if (rows_adj > max_rows) rows_adj = max_rows;
-    if (cols_adj > max_cols_cells) cols_adj = max_cols_cells;
-
-    // Reassign working dimensions
-    rows = rows_adj;
-    cols = cols_adj;
+    // Clamp requested board to what fits visibly
+    rows = if (rows > max_rows_cells) max_rows_cells else rows;
+    cols = if (cols > max_cols_cells) max_cols_cells else cols;
 
     // Compute padding to center the grid (accounting for frame)
     const vert_pad = if (term.rows > rows + 3) (term.rows - 3 - rows) / 2 else 0; // +3 for top/bottom frame + status
     const horiz_pad_chars = blk: {
-        const needed = cols * 2 + 4; // +4 for left/right frame (2 chars each)
+        const needed = cols * 2 + 4; // +4 for left/right frame + inside padding
         if (term.cols > needed) break :blk (term.cols - needed) / 2 else break :blk 0;
     };
 
@@ -372,8 +369,9 @@ pub fn main() !void {
         }
         try print("\u{2500}\u{2518}", .{}); // padding space + corner
         
-        // Status line below the frame
-        try print("\x1b[{d};1H\x1b[0mGen: {d}  (Ctrl+C to quit)\n", .{ vert_pad + 3 + rows, gen + 1 });
+        // Status line below the frame (no trailing newline to avoid scroll)
+        // Clear the entire status line first to prevent leftover characters.
+        try print("\x1b[{d};1H\x1b[0m\x1b[2KGen: {d}  (Ctrl+C to quit)", .{ vert_pad + 3 + rows, gen + 1 });
 
         // Compute next generation (toroidal wrap)
         stepGrid(grid, rows, cols, next);
