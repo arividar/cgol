@@ -8,7 +8,9 @@
 const std = @import("std");
 const posix = std.posix;
 
-fn idx(r: usize, c: usize, cols: usize) usize { return r * cols + c; }
+fn idx(r: usize, c: usize, cols: usize) usize {
+    return r * cols + c;
+}
 
 fn addWrap(i: usize, delta: i32, max: usize) usize {
     const m: i64 = @as(i64, @intCast(max));
@@ -57,7 +59,7 @@ fn loadConfig(alloc: std.mem.Allocator) ConfigPartial {
         if (eq_idx_opt == null) continue;
         const i = eq_idx_opt.?;
         const key = std.mem.trim(u8, line[0..i], " \t");
-        const val_str = std.mem.trim(u8, line[i+1..], " \t");
+        const val_str = std.mem.trim(u8, line[i + 1 ..], " \t");
         if (val_str.len == 0) continue;
         // parse unsigned integer values only
         if (std.mem.eql(u8, key, "rows")) {
@@ -119,7 +121,7 @@ fn stepGrid(curr: []const u8, rows: usize, cols: usize, next: []u8) void {
 
 pub fn main() !void {
     const stdout_file = std.fs.File{ .handle = 1 }; // stdout is fd 1
-    
+
     // Create a print function for stdout
     const print = struct {
         fn print(comptime format: []const u8, args: anytype) !void {
@@ -128,7 +130,7 @@ pub fn main() !void {
             _ = try stdout_file.writeAll(formatted);
         }
     }.print;
-    
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -221,17 +223,17 @@ pub fn main() !void {
     defer print("\x1b[?25h\x1b[0m\n", .{}) catch {};
 
     const stdin_file = std.fs.File{ .handle = 0 }; // stdin is fd 0
-    
+
     // Simple input reading function
     const readLine = struct {
         var input_buffer: [1024]u8 = undefined;
         var buffer_pos: usize = 0;
         var buffer_end: usize = 0;
-        
+
         fn readLine(alloc: std.mem.Allocator, _: usize) !?[]u8 {
             var line: [256]u8 = undefined;
             var line_pos: usize = 0;
-            
+
             while (line_pos < line.len - 1) {
                 // Refill buffer if empty
                 if (buffer_pos >= buffer_end) {
@@ -242,15 +244,15 @@ pub fn main() !void {
                         break;
                     }
                 }
-                
+
                 const char = input_buffer[buffer_pos];
                 buffer_pos += 1;
-                
+
                 if (char == '\n') break;
                 line[line_pos] = char;
                 line_pos += 1;
             }
-            
+
             return try alloc.dupe(u8, std.mem.trim(u8, line[0..line_pos], " \t\r\n"));
         }
     }.readLine;
@@ -267,7 +269,7 @@ pub fn main() !void {
     const have_cols = (o_cols != null) or (cfg.cols != null);
     const need_prompt_rows_cols = (force_prompt and !(o_rows != null and o_cols != null)) or (!have_rows or !have_cols);
     if (need_prompt_rows_cols) {
-        try print("Enter rows and cols (e.g., 25 60) [default {d} {d}]: ", .{rows, cols});
+        try print("Enter rows and cols (e.g., 25 60) [default {d} {d}]: ", .{ rows, cols });
         const line1_opt = try readLine(alloc, 256);
         if (line1_opt) |line1_raw| {
             const line1 = std.mem.trim(u8, line1_raw, " \t\r\n");
@@ -346,7 +348,7 @@ pub fn main() !void {
             try print("\u{2500}\u{2500}", .{});
         }
         try print("\u{2500}\u{2510}", .{}); // padding space + corner
-        
+
         // Draw grid with side frames
         for (0..rows) |r| {
             // Position cursor and draw left frame
@@ -360,7 +362,7 @@ pub fn main() !void {
             // Draw right frame
             try print("\x1b[0m \u{2502}", .{});
         }
-        
+
         // Draw bottom frame
         try print("\x1b[{d};{d}H\x1b[0m\u{2514}", .{ vert_pad + 2 + rows, horiz_pad_chars + 1 });
         try print("\u{2500}", .{}); // padding space
@@ -368,7 +370,7 @@ pub fn main() !void {
             try print("\u{2500}\u{2500}", .{});
         }
         try print("\u{2500}\u{2518}", .{}); // padding space + corner
-        
+
         // Status line below the frame (no trailing newline to avoid scroll)
         // Clear the entire status line first to prevent leftover characters.
         try print("\x1b[{d};1H\x1b[0m\x1b[2KGen: {d}  (Ctrl+C to quit)", .{ vert_pad + 3 + rows, gen + 1 });
@@ -377,7 +379,9 @@ pub fn main() !void {
         stepGrid(grid, rows, cols, next);
 
         // Swap buffers
-        const tmp = grid; grid = next; next = tmp;
+        const tmp = grid;
+        grid = next;
+        next = tmp;
 
         std.Thread.sleep(delay_ms * std.time.ns_per_ms);
     }
