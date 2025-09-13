@@ -149,6 +149,26 @@ pub fn main() !void {
         var i: usize = 1; // skip program name
         while (i < args.len) : (i += 1) {
             const a = args[i];
+            // Help
+            if (std.mem.eql(u8, a, "--help") or std.mem.eql(u8, a, "-h")) {
+                try print(
+                    "Conway's Game of Life (terminal)\n\n" ++
+                    "Usage:\n" ++
+                    "  cgol [options]\n" ++
+                    "  cgol <rows> <cols> <generations> <delay_ms>\n\n" ++
+                    "Options:\n" ++
+                    "  --height <rows>          Board height (also --height=40)\n" ++
+                    "  --width <cols>           Board width (also --width=60)\n" ++
+                    "  --generations <n>        0 for infinite (also --generations=0)\n" ++
+                    "  --delay <ms>             Delay per generation in ms (also --delay=120)\n" ++
+                    "  -p, --prompt-user-for-config  Force interactive prompts for missing values\n" ++
+                    "  -h, --help               Show this help and exit\n\n" ++
+                    "Configuration:\n" ++
+                    "  Reads/writes cgol.toml at repo root. Missing/partial values prompt.\n",
+                    .{},
+                );
+                return;
+            }
             if (std.mem.eql(u8, a, "--prompt-user-for-config") or std.mem.eql(u8, a, "-p")) {
                 force_prompt = true;
                 continue;
