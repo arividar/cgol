@@ -161,7 +161,7 @@ pub fn main() !void {
                     "  --width <cols>           Board width (also --width=60)\n" ++
                     "  --generations <n>        0 for infinite (also --generations=0)\n" ++
                     "  --delay <ms>             Delay per generation in ms (also --delay=120)\n" ++
-                    "  -p, --prompt-user-for-config  Force interactive prompts for missing values\n" ++
+                    "  -p, --prompt-for-config  Force interactive prompts for missing values\n" ++
                     "  -h, --help               Show this help and exit\n\n" ++
                     "Configuration:\n" ++
                     "  Reads/writes cgol.toml at repo root. Missing/partial values prompt.\n",
@@ -169,7 +169,7 @@ pub fn main() !void {
                 );
                 return;
             }
-            if (std.mem.eql(u8, a, "--prompt-user-for-config") or std.mem.eql(u8, a, "-p")) {
+            if (std.mem.eql(u8, a, "--prompt-for-config") or std.mem.eql(u8, a, "-p")) {
                 force_prompt = true;
                 continue;
             }
