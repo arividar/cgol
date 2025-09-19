@@ -355,7 +355,7 @@ pub fn main() !void {
             try print(" ", .{});
             for (0..cols) |c| {
                 const alive = grid[idx(r, c, cols)] == 1;
-                if (alive) try print("\x1b[38;5;46m\u{2588}\u{2588}", .{}) else try print("  ", .{});
+                if (alive) try print("\x1b[38;5;121m\u{2588}\u{2588}", .{}) else try print("  ", .{});
             }
             // Draw right frame
             try print("\x1b[0m \u{2502}", .{});
