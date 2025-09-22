@@ -68,7 +68,7 @@ cgol 40 60 100 80    # rows cols generations delay_ms
 
 #### Interactive Mode
 ```bash
-cgol --prompt-user-for-config    # Force prompts even if config exists
+cgol --prompt-for-config    # Force prompts even if config exists
 cgol -p                          # Short form
 ```
 
