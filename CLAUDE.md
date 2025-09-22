@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Conway's Game of Life implementation written in Zig. The project consists of a single file (`cgol.zig`) that implements an interactive, terminal-based Game of Life simulator with toroidal wrapping.
+This is a Conway's Game of Life implementation written in Zig. The project implements an interactive, terminal-based Game of Life simulator with toroidal wrapping, now organized into multiple modules for better maintainability.
 
 ## Build and Development Commands
 
@@ -61,28 +61,35 @@ cgol 40 60 100 80    # rows cols generations delay_ms
 
 ## Code Architecture
 
-The implementation is self-contained in a single Zig file with these key components:
+The project is organized into several modules in the `src/` directory:
 
-### Core Functions
-- `idx(r: usize, c: usize, cols: usize)`: Converts 2D grid coordinates to 1D array index
-- `addWrap(i: usize, delta: i32, max: usize)`: Handles toroidal boundary wrapping for the Game of Life grid
+### Module Structure
+- **`main.zig`**: Entry point, orchestrates all modules and main game loop
+- **`game.zig`**: Core Conway's Game of Life logic and grid operations
+- **`config.zig`**: Configuration file parsing and management (`cgol.toml`)
+- **`cli.zig`**: Command-line argument parsing and help display
+- **`renderer.zig`**: Terminal rendering with ANSI escape sequences
+- **`input.zig`**: User input handling for interactive prompts
+- **`constants.zig`**: Centralized constants and configuration values
+
+### Key Functions
+- **Game logic**: Grid initialization, neighbor counting with toroidal wrapping
+- **Configuration**: TOML parsing, CLI argument handling, interactive prompts
+- **Rendering**: ANSI terminal control, frame rendering, layout calculation
 
 ### Main Logic Flow
-1. **Input Phase**: Collects user preferences for grid size, generations, and animation speed
-2. **Memory Management**: Allocates two grids (current and next generation) using Zig's allocators
-3. **Initialization**: Seeds the grid with ~35% probability of live cells using random number generation
-4. **Game Loop**: 
-   - Renders current state using ANSI escape codes for terminal graphics
-   - Calculates next generation following Conway's rules with 8-neighbor toroidal topology
-   - Double-buffers between grids for efficient updates
-   - Applies configurable delay between generations
+1. **CLI Parsing**: Process command-line arguments and help requests
+2. **Configuration**: Load from file, merge with CLI args, prompt for missing values
+3. **Setup**: Initialize renderer, allocate grids, calculate terminal layout
+4. **Simulation**: Double-buffered grid updates with configurable timing
+5. **Rendering**: Frame-by-frame display with generation counter
 
 ### Technical Details
 - Uses ANSI escape sequences for cursor control and colored output
 - Implements toroidal topology (edges wrap around)
 - Memory-efficient double-buffering approach
 - Arena allocator for temporary allocations, GeneralPurposeAllocator for grid data
-- Single-file implementation using only Zig standard library
+- Modular design using Zig's import system
 - Terminal size detection for optimal display
 - Configuration auto-saves to `cgol.toml` after prompts
 
