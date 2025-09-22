@@ -79,39 +79,65 @@ pub const Renderer = struct {
         try self.print(constants.ANSI_CLEAR_SCREEN, .{});
     }
 
-    /// Render the game grid with frame and status
-    pub fn renderFrame(self: *Renderer, grid: []const u8, rows: usize, cols: usize, generation: usize) !void {
-        // Draw top frame
+    /// Draw top frame line
+    fn drawTopFrame(self: *Renderer, cols: usize) !void {
         try self.print("\x1b[{d};{d}H" ++ constants.ANSI_RESET_COLOR ++ constants.BOX_TOP_LEFT, .{ self.vert_pad + 1, self.horiz_pad_chars + 1 });
         try self.print(constants.BOX_HORIZONTAL, .{}); // padding space
         for (0..cols) |_| {
             try self.print(constants.BOX_HORIZONTAL ++ constants.BOX_HORIZONTAL, .{});
         }
         try self.print(constants.BOX_HORIZONTAL ++ constants.BOX_TOP_RIGHT, .{}); // padding space + corner
+    }
 
-        // Draw grid with side frames
-        for (0..rows) |r| {
-            // Position cursor and draw left frame
-            try self.print("\x1b[{d};{d}H" ++ constants.ANSI_RESET_COLOR ++ constants.BOX_VERTICAL, .{ self.vert_pad + 2 + r, self.horiz_pad_chars + 1 });
-            // Draw grid row with padding
-            try self.print(" ", .{});
-            for (0..cols) |c| {
-                const alive = grid[game.idx(r, c, cols)] == constants.CELL_ALIVE;
-                if (alive) try self.print(constants.ANSI_LIVE_CELL_COLOR ++ constants.LIVE_CELL_CHAR, .{}) else try self.print(constants.DEAD_CELL_CHAR, .{});
-            }
-            // Draw right frame
-            try self.print(constants.ANSI_RESET_COLOR ++ " " ++ constants.BOX_VERTICAL, .{});
-        }
-
-        // Draw bottom frame
+    /// Draw bottom frame line
+    fn drawBottomFrame(self: *Renderer, rows: usize, cols: usize) !void {
         try self.print("\x1b[{d};{d}H" ++ constants.ANSI_RESET_COLOR ++ constants.BOX_BOTTOM_LEFT, .{ self.vert_pad + 2 + rows, self.horiz_pad_chars + 1 });
         try self.print(constants.BOX_HORIZONTAL, .{}); // padding space
         for (0..cols) |_| {
             try self.print(constants.BOX_HORIZONTAL ++ constants.BOX_HORIZONTAL, .{});
         }
         try self.print(constants.BOX_HORIZONTAL ++ constants.BOX_BOTTOM_RIGHT, .{}); // padding space + corner
+    }
 
-        // Status line below the frame
+    /// Draw a single grid row with side frames
+    fn drawGridRow(self: *Renderer, grid: []const u8, row: usize, cols: usize, grid_row: usize) !void {
+        // Position cursor and draw left frame
+        try self.print("\x1b[{d};{d}H" ++ constants.ANSI_RESET_COLOR ++ constants.BOX_VERTICAL, .{ row, self.horiz_pad_chars + 1 });
+
+        // Draw grid row with padding
+        try self.print(" ", .{});
+        for (0..cols) |c| {
+            const alive = grid[game.idx(grid_row, c, cols)] == constants.CELL_ALIVE;
+            if (alive) {
+                try self.print(constants.ANSI_LIVE_CELL_COLOR ++ constants.LIVE_CELL_CHAR, .{});
+            } else {
+                try self.print(constants.DEAD_CELL_CHAR, .{});
+            }
+        }
+
+        // Draw right frame
+        try self.print(constants.ANSI_RESET_COLOR ++ " " ++ constants.BOX_VERTICAL, .{});
+    }
+
+    /// Draw the status line below the game grid
+    fn drawStatusLine(self: *Renderer, rows: usize, generation: usize) !void {
         try self.print("\x1b[{d};1H" ++ constants.ANSI_RESET_COLOR ++ constants.ANSI_CLEAR_LINE ++ constants.STATUS_MESSAGE, .{ self.vert_pad + 3 + rows, generation + 1 });
+    }
+
+    /// Render the game grid with frame and status
+    pub fn renderFrame(self: *Renderer, grid: []const u8, rows: usize, cols: usize, generation: usize) !void {
+        // Draw top frame
+        try self.drawTopFrame(cols);
+
+        // Draw grid with side frames
+        for (0..rows) |r| {
+            try self.drawGridRow(grid, self.vert_pad + 2 + r, cols, r);
+        }
+
+        // Draw bottom frame
+        try self.drawBottomFrame(rows, cols);
+
+        // Draw status line
+        try self.drawStatusLine(rows, generation);
     }
 };
