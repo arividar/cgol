@@ -4,6 +4,7 @@ const config = @import("config.zig");
 const renderer = @import("renderer.zig");
 const cli = @import("cli.zig");
 const input = @import("input.zig");
+const constants = @import("constants.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -32,8 +33,8 @@ pub fn main() !void {
 
     // Load configuration; prompt only for missing fields unless forced by CLI
     const cfg = if (args.force_prompt) config.ConfigPartial{} else config.loadConfig(alloc);
-    var rows: usize = args.rows orelse (cfg.rows orelse 40);
-    var cols: usize = args.cols orelse (cfg.cols orelse 60);
+    var rows: usize = args.rows orelse (cfg.rows orelse constants.DEFAULT_ROWS);
+    var cols: usize = args.cols orelse (cfg.cols orelse constants.DEFAULT_COLS);
 
     // Handle interactive prompts for missing configuration
     var input_reader = input.InputReader.init();
@@ -42,35 +43,35 @@ pub fn main() !void {
     const need_prompt_rows_cols = (args.force_prompt and !(args.rows != null and args.cols != null)) or (!have_rows or !have_cols);
 
     if (need_prompt_rows_cols) {
-        try render.print("Enter rows and cols (e.g., 25 60) [default {d} {d}]: ", .{ rows, cols });
+        try render.print(constants.PROMPT_ROWS_COLS, .{ rows, cols });
         const line1_opt = try input_reader.readLine(alloc);
         if (line1_opt) |line1_raw| {
-            const line1 = std.mem.trim(u8, line1_raw, " \t\r\n");
+            const line1 = std.mem.trim(u8, line1_raw, constants.WHITESPACE_CHARS);
             if (line1.len != 0) {
-                var it1 = std.mem.tokenizeAny(u8, line1, " \t\r");
-                if (it1.next()) |rows_s| rows = try std.fmt.parseUnsigned(usize, rows_s, 10);
-                if (it1.next()) |cols_s| cols = try std.fmt.parseUnsigned(usize, cols_s, 10);
+                var it1 = std.mem.tokenizeAny(u8, line1, constants.TRIM_CHARS);
+                if (it1.next()) |rows_s| rows = try std.fmt.parseUnsigned(usize, rows_s, constants.DECIMAL_BASE);
+                if (it1.next()) |cols_s| cols = try std.fmt.parseUnsigned(usize, cols_s, constants.DECIMAL_BASE);
             }
         }
     }
 
-    var gens: u64 = args.generations orelse (cfg.generations orelse 100);
+    var gens: u64 = args.generations orelse (cfg.generations orelse constants.DEFAULT_GENERATIONS);
     if ((args.force_prompt and args.generations == null) or (cfg.generations == null and args.generations == null)) {
-        try render.print("Generations to run (0 = infinite, default={d}): ", .{gens});
+        try render.print(constants.PROMPT_GENERATIONS, .{gens});
         const line2_opt = try input_reader.readLine(alloc);
         if (line2_opt) |l2| {
-            const t = std.mem.trim(u8, l2, " \t\r\n");
-            if (t.len != 0) gens = try std.fmt.parseUnsigned(u64, t, 10);
+            const t = std.mem.trim(u8, l2, constants.WHITESPACE_CHARS);
+            if (t.len != 0) gens = try std.fmt.parseUnsigned(u64, t, constants.DECIMAL_BASE);
         }
     }
 
-    var delay_ms: u64 = args.delay_ms orelse (cfg.delay_ms orelse 100);
+    var delay_ms: u64 = args.delay_ms orelse (cfg.delay_ms orelse constants.DEFAULT_DELAY_MS);
     if ((args.force_prompt and args.delay_ms == null) or (cfg.delay_ms == null and args.delay_ms == null)) {
-        try render.print("Delay per generation in ms [default {d}]: ", .{delay_ms});
+        try render.print(constants.PROMPT_DELAY, .{delay_ms});
         const line3_opt = try input_reader.readLine(alloc);
         if (line3_opt) |l3| {
-            const t = std.mem.trim(u8, l3, " \t\r\n");
-            if (t.len != 0) delay_ms = try std.fmt.parseUnsigned(u64, t, 10);
+            const t = std.mem.trim(u8, l3, constants.WHITESPACE_CHARS);
+            if (t.len != 0) delay_ms = try std.fmt.parseUnsigned(u64, t, constants.DECIMAL_BASE);
         }
     }
 
@@ -90,13 +91,13 @@ pub fn main() !void {
     // Initialize with random pattern
     var prng = std.Random.DefaultPrng.init(@as(u64, @truncate(@as(u128, @bitCast(std.time.nanoTimestamp())))));
     const rand = prng.random();
-    game.initializeRandomGrid(grid, 0.35, rand);
+    game.initializeRandomGrid(grid, constants.DEFAULT_INITIAL_DENSITY, rand);
 
     // Clear screen and start simulation
     try render.clearScreen();
 
     var gen: usize = 0;
-    while (gens == 0 or gen < gens) : (gen += 1) {
+    while (gens == constants.INFINITE_GENERATIONS or gen < gens) : (gen += 1) {
         // Render current generation
         try render.renderFrame(grid, rows, cols, gen);
 
