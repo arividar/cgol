@@ -1,4 +1,5 @@
 const std = @import("std");
+const constants = @import("constants.zig");
 
 pub const CliArgs = struct {
     force_prompt: bool = false,
@@ -16,7 +17,7 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    var pos_vals: [4]u64 = undefined;
+    var pos_vals: [constants.CLI_MAX_POSITIONAL_ARGS]u64 = undefined;
     var pos_count: usize = 0;
     var i: usize = 1; // skip program name
 
@@ -36,13 +37,13 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
 
         if (std.mem.startsWith(u8, a, "--height=")) {
             const vstr = a["--height=".len..];
-            result.rows = std.fmt.parseUnsigned(usize, vstr, 10) catch null;
+            result.rows = std.fmt.parseUnsigned(usize, vstr, constants.DECIMAL_BASE) catch null;
             continue;
         }
 
         if (std.mem.eql(u8, a, "--height")) {
             if (i + 1 < args.len) {
-                result.rows = std.fmt.parseUnsigned(usize, args[i + 1], 10) catch null;
+                result.rows = std.fmt.parseUnsigned(usize, args[i + 1], constants.DECIMAL_BASE) catch null;
                 i += 1;
             }
             continue;
@@ -50,13 +51,13 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
 
         if (std.mem.startsWith(u8, a, "--width=")) {
             const vstr = a["--width=".len..];
-            result.cols = std.fmt.parseUnsigned(usize, vstr, 10) catch null;
+            result.cols = std.fmt.parseUnsigned(usize, vstr, constants.DECIMAL_BASE) catch null;
             continue;
         }
 
         if (std.mem.eql(u8, a, "--width")) {
             if (i + 1 < args.len) {
-                result.cols = std.fmt.parseUnsigned(usize, args[i + 1], 10) catch null;
+                result.cols = std.fmt.parseUnsigned(usize, args[i + 1], constants.DECIMAL_BASE) catch null;
                 i += 1;
             }
             continue;
@@ -64,13 +65,13 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
 
         if (std.mem.startsWith(u8, a, "--generations=")) {
             const vstr = a["--generations=".len..];
-            result.generations = std.fmt.parseUnsigned(u64, vstr, 10) catch null;
+            result.generations = std.fmt.parseUnsigned(u64, vstr, constants.DECIMAL_BASE) catch null;
             continue;
         }
 
         if (std.mem.eql(u8, a, "--generations")) {
             if (i + 1 < args.len) {
-                result.generations = std.fmt.parseUnsigned(u64, args[i + 1], 10) catch null;
+                result.generations = std.fmt.parseUnsigned(u64, args[i + 1], constants.DECIMAL_BASE) catch null;
                 i += 1;
             }
             continue;
@@ -78,13 +79,13 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
 
         if (std.mem.startsWith(u8, a, "--delay=")) {
             const vstr = a["--delay=".len..];
-            result.delay_ms = std.fmt.parseUnsigned(u64, vstr, 10) catch null;
+            result.delay_ms = std.fmt.parseUnsigned(u64, vstr, constants.DECIMAL_BASE) catch null;
             continue;
         }
 
         if (std.mem.eql(u8, a, "--delay")) {
             if (i + 1 < args.len) {
-                result.delay_ms = std.fmt.parseUnsigned(u64, args[i + 1], 10) catch null;
+                result.delay_ms = std.fmt.parseUnsigned(u64, args[i + 1], constants.DECIMAL_BASE) catch null;
                 i += 1;
             }
             continue;
@@ -93,7 +94,7 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
         // Positional arguments
         if (a.len > 0 and a[0] != '-') {
             if (pos_count < pos_vals.len) {
-                if (std.fmt.parseUnsigned(u64, a, 10)) |v| {
+                if (std.fmt.parseUnsigned(u64, a, constants.DECIMAL_BASE)) |v| {
                     pos_vals[pos_count] = v;
                     pos_count += 1;
                 } else |_| {}
@@ -117,20 +118,5 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
 
 /// Print help message
 pub fn printHelp(renderer: anytype) !void {
-    try renderer.print(
-        "Conway's Game of Life (terminal)\n\n" ++
-            "Usage:\n" ++
-            "  cgol [options]\n" ++
-            "  cgol <rows> <cols> <generations> <delay_ms>\n\n" ++
-            "Options:\n" ++
-            "  --height <rows>          Board height (also --height=40)\n" ++
-            "  --width <cols>           Board width (also --width=60)\n" ++
-            "  --generations <n>        0 for infinite (also --generations=0)\n" ++
-            "  --delay <ms>             Delay per generation in ms (also --delay=120)\n" ++
-            "  -p, --prompt-for-config  Force interactive prompts for missing values\n" ++
-            "  -h, --help               Show this help and exit\n\n" ++
-            "Configuration:\n" ++
-            "  Reads/writes cgol.toml at repo root. Missing/partial values prompt.\n",
-        .{},
-    );
+    try renderer.print(constants.HELP_TEXT, .{});
 }
