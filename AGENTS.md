@@ -1,40 +1,19 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `cgol.zig` — main Zig source (terminal Conway’s Game of Life).
-- `build.zig` — build configuration; update if paths/names change.
-- `zig-out/bin/cgol` — installed binary (via `zig build install`).
-- `CLAUDE.md`, `GEMINI.md`, `.claude/` — agent docs/prompts.
-- `.gitignore` — Zig defaults. No external assets/modules.
+Runtime code now lives under `src/`: `main.zig` orchestrates configuration, rendering, and simulation; `cli.zig`, `config.zig`, `input.zig`, and `renderer.zig` own the interface work; `game.zig` houses core rules plus inline tests; `patterns.zig` loads RLE/plaintext/Life 1.06 files; shared constants sit in `constants.zig`. Keep build logic in `build.zig`, which targets `src/main.zig`. Sample seeds reside in `patterns/`, and generated binaries land in `zig-out/bin/cgol`. Reference docs for other agents remain in `CLAUDE.md`, `GEMINI.md`, and `.claude/`.
 
 ## Build, Test, and Development Commands
-- Build (debug): `zig build` — compiles with debug info.
-- Build (release): `zig build -Doptimize=ReleaseSafe` — safer optimizations.
-- Install: `zig build install` — places binary at `zig-out/bin/cgol`.
-- Run (build runner): `zig build run`.
-- Force prompts: `zig build run -- -p` (alias `--prompt-user-for-config`).
-- Run installed: `./zig-out/bin/cgol`.
-- Tests: `zig build test` — runs inline tests.
-- Format: `zig fmt .` — formats all Zig files.
+`zig build` compiles a debug build; add `-Doptimize=ReleaseSafe` for safer release binaries. `zig build run` executes the app; append `-- --prompt-for-config` (or `-p`) to force interactive prompts, or `-- --pattern patterns/gosperglidergun.rle` to load a preset. Install to `zig-out/bin/` with `zig build install`, then run `./zig-out/bin/cgol` for smoke checks. Always finish with `zig build test` to execute inline unit tests.
 
 ## Coding Style & Naming Conventions
-- Use `zig fmt` before committing; no manual styling tweaks.
-- Indentation: 4 spaces; no tabs.
-- Naming: types `UpperCamelCase`; functions/vars/consts `lowerCamelCase`.
-- Prefer explicit sizes (`u8`, `usize`) and `const` unless mutation is required.
-- Keep functions small; separate I/O from pure logic where practical.
+Run `zig fmt .` before posting changes—manual spacing tweaks are discouraged. Use four spaces, no tabs. Prefer explicit integer widths and default to `const` unless mutation is required. Follow Zig casing: `UpperCamelCase` types, `lowerCamelCase` functions, variables, and consts. Keep rendering/input concerns in their modules and leave pure grid logic inside `game.zig` to simplify testing.
 
 ## Testing Guidelines
-- Use inline `test { ... }` blocks colocated with code (e.g., `test "addWrap"`).
-- Add focused unit tests for pure helpers; avoid time-dependent checks.
-- Run locally with `zig build test` and keep tests deterministic.
+Inline `test "description" { ... }` blocks should sit next to the logic they exercise—see `src/game.zig` for patterns. Cover toroidal wrapping, oscillator regressions, pattern parsing, and failure paths. Use deterministic seeds or fixtures (e.g., small buffers, sample files in `patterns/`) so `zig build test` stays fast and reliable. Document any helper routines inside the test block when intent is not obvious.
 
 ## Commit & Pull Request Guidelines
-- Commits: imperative, concise, and scoped (e.g., `Fix wrap logic at edges`).
-- Reference related issues/PRs. Group unrelated changes into separate commits.
-- PRs include: clear summary, rationale, manual run steps (`zig build run`), and screenshots/gifs if terminal output changed. Document any CLI/config behavior changes.
+Write imperative, scoped commits (`Add RLE parser fallback`). Reference related issues or PRs when applicable. Pull requests should explain motivation, list manual verification (`zig build run`, `zig build test`, key CLI invocations), and call out config or UX changes. Include terminal captures when rendering behavior shifts.
 
-## Architecture & Configuration
-- Single-file terminal app using ANSI escape codes, toroidal wrap, RNG seeding, and `std.Thread.sleep` for pacing. No external dependencies beyond Zig std.
-- Config file: `cgol.toml` at repo root. Keys: `rows` (usize), `cols` (usize), `generations` (u64, 0=infinite), `delay_ms` (u64). Missing/partial config triggers prompts; the app writes a full `cgol.toml`. Delete it to re-prompt.
-- CLI options: `--height <rows>`, `--width <cols>`, `--generations <n>`, `--delay <ms>`, or positional `cgol <rows> <cols> <generations> <delay>`.
+## Configuration & Runtime Notes
+The app reads `cgol.toml` at the repo root with keys `rows`, `cols`, `generations` (`0` = infinite), and `delay_ms`. Missing values trigger prompts; the program then rewrites the full file for future runs. Remove `cgol.toml` or pass `-p/--prompt-for-config` to regenerate. When loading patterns, files must fit the grid; the renderer centers them automatically and falls back to pseudo-random initialization if parsing fails.
