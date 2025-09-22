@@ -26,6 +26,7 @@ pub const PatternInfo = struct {
     width: usize,
     height: usize,
     rule: []const u8 = "B3/S23", // Conway's standard rule
+    rule_allocated: bool = false, // Track if rule was allocated
     allocator: std.mem.Allocator,
 
     pub fn deinit(self: *PatternInfo) void {
@@ -36,7 +37,7 @@ pub const PatternInfo = struct {
         if (self.description) |description| {
             self.allocator.free(description);
         }
-        if (!std.mem.eql(u8, self.rule, "B3/S23")) {
+        if (self.rule_allocated) {
             self.allocator.free(self.rule);
         }
     }
@@ -136,6 +137,7 @@ fn parseRLE(allocator: std.mem.Allocator, content: []const u8) PatternError!Patt
                 } else if (std.mem.eql(u8, part, "rule")) {
                     if (parts.next()) |rule_str| {
                         info.rule = try allocator.dupe(u8, rule_str);
+                        info.rule_allocated = true;
                     }
                 }
             }
