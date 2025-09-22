@@ -90,6 +90,7 @@ delay_ms = 100
 - **`--width <cols>`**: Grid width (default: 80)
 - **`--generations <n>`**: Number of generations to simulate (0 = infinite, default: 0)
 - **`--delay <ms>`**: Delay between generations in milliseconds (default: 100)
+- **`--prompt-for-config`**: Force interactive config prompts
 - **`--help`**: Show help message
 
 ## Controls
