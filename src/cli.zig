@@ -103,10 +103,14 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
     }
 
     // Apply positional ordered params: height width generations delay
-    if (pos_count > 0 and result.rows == null) result.rows = @as(usize, @intCast(pos_vals[0]));
-    if (pos_count > 1 and result.cols == null) result.cols = @as(usize, @intCast(pos_vals[1]));
-    if (pos_count > 2 and result.generations == null) result.generations = pos_vals[2];
-    if (pos_count > 3 and result.delay_ms == null) result.delay_ms = pos_vals[3];
+    if (pos_count > 0 and result.rows == null)
+        result.rows = @as(usize, @intCast(pos_vals[0]));
+    if (pos_count > 1 and result.cols == null)
+        result.cols = @as(usize, @intCast(pos_vals[1]));
+    if (pos_count > 2 and result.generations == null)
+        result.generations = pos_vals[2];
+    if (pos_count > 3 and result.delay_ms == null)
+        result.delay_ms = pos_vals[3];
 
     return result;
 }
