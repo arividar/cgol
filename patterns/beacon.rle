@@ -1,0 +1,5 @@
+#N Beacon
+#O John Conway
+#C Period 2 oscillator
+x = 4, y = 4, rule = B3/S23
+2o2b$o3b$3bo$2b2o!

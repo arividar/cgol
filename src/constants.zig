@@ -81,8 +81,13 @@ pub const HELP_TEXT: []const u8 =
     "  --width <cols>           Board width (also --width=60)\n" ++
     "  --generations <n>        0 for infinite (also --generations=0)\n" ++
     "  --delay <ms>             Delay per generation in ms (also --delay=120)\n" ++
+    "  --pattern <file>         Load pattern from file (also --pattern=glider.rle)\n" ++
     "  -p, --prompt-for-config  Force interactive prompts for missing values\n" ++
     "  -h, --help               Show this help and exit\n\n" ++
+    "Pattern Formats:\n" ++
+    "  .rle                     Run Length Encoded format\n" ++
+    "  .cells                   Plaintext format\n" ++
+    "  .life, .lif              Life 1.06 format\n\n" ++
     "Configuration:\n" ++
     "  Reads/writes cgol.toml at repo root. Missing/partial values prompt.\n";
 
@@ -98,3 +103,7 @@ pub const TRIM_CHARS: []const u8 = " \t\r";
 pub const COMMENT_CHAR: u8 = '#';
 pub const EQUALS_CHAR: u8 = '=';
 pub const NEWLINE_CHAR: u8 = '\n';
+// === Pattern Loading Constants ===
+pub const MAX_PATTERN_FILE_SIZE: usize = 1024 * 1024; // 1MB max pattern file size
+pub const PATTERN_DEFAULT_OFFSET_X: i32 = 0;
+pub const PATTERN_DEFAULT_OFFSET_Y: i32 = 0;
