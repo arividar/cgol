@@ -7,7 +7,14 @@ pub const CliArgs = struct {
     cols: ?usize = null,
     generations: ?u64 = null,
     delay_ms: ?u64 = null,
+    pattern_file: ?[]const u8 = null,
     show_help: bool = false,
+
+    pub fn deinit(self: *CliArgs, allocator: std.mem.Allocator) void {
+        if (self.pattern_file) |pattern_file| {
+            allocator.free(pattern_file);
+        }
+    }
 };
 
 /// Parse command line arguments
@@ -86,6 +93,20 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
         if (std.mem.eql(u8, a, "--delay")) {
             if (i + 1 < args.len) {
                 result.delay_ms = std.fmt.parseUnsigned(u64, args[i + 1], constants.DECIMAL_BASE) catch null;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, a, "--pattern=")) {
+            const vstr = a["--pattern=".len..];
+            result.pattern_file = try allocator.dupe(u8, vstr);
+            continue;
+        }
+
+        if (std.mem.eql(u8, a, "--pattern")) {
+            if (i + 1 < args.len) {
+                result.pattern_file = try allocator.dupe(u8, args[i + 1]);
                 i += 1;
             }
             continue;

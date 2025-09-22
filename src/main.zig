@@ -4,6 +4,7 @@ const config = @import("config.zig");
 const renderer = @import("renderer.zig");
 const cli = @import("cli.zig");
 const input = @import("input.zig");
+const patterns = @import("patterns.zig");
 const constants = @import("constants.zig");
 
 /// Configuration parameters for the game
@@ -143,9 +144,10 @@ fn gatherConfiguration(
     };
 }
 
-/// Initialize the game state with allocated grids and random pattern
+/// Initialize the game state with allocated grids and pattern
 fn initializeGameState(
     game_config: GameConfig,
+    pattern_file: ?[]const u8,
     render: *renderer.Renderer,
     allocator: std.mem.Allocator,
 ) !GameState {
@@ -161,10 +163,43 @@ fn initializeGameState(
     const next = try allocator.alloc(u8, count);
     errdefer allocator.free(next);
 
-    // Initialize with random pattern
-    var prng = std.Random.DefaultPrng.init(@as(u64, @truncate(@as(u128, @bitCast(std.time.nanoTimestamp())))));
-    const rand = prng.random();
-    game.initializeRandomGrid(grid, constants.DEFAULT_INITIAL_DENSITY, rand);
+    // Initialize grid (clear all cells first)
+    @memset(grid, constants.CELL_DEAD);
+
+    if (pattern_file) |filename| {
+        // Load pattern from file
+        var pattern = patterns.loadPattern(allocator, filename) catch |err| {
+            // If pattern loading fails, fall back to random initialization
+            try render.print("Warning: Failed to load pattern '{s}': {}\n", .{ filename, err });
+            try render.print("Falling back to random initialization...\n", .{});
+            var prng = std.Random.DefaultPrng.init(@as(u64, @truncate(@as(u128, @bitCast(std.time.nanoTimestamp())))));
+            const rand = prng.random();
+            game.initializeRandomGrid(grid, constants.DEFAULT_INITIAL_DENSITY, rand);
+            return GameState{
+                .grid = grid,
+                .next = next,
+                .rows = rows,
+                .cols = cols,
+                .generations = game_config.generations,
+                .delay_ms = game_config.delay_ms,
+                .allocator = allocator,
+            };
+        };
+        defer pattern.deinit();
+
+        // Center the pattern in the grid
+        const offset_x = @as(i32, @intCast(cols / 2)) - @as(i32, @intCast(pattern.info.width / 2));
+        const offset_y = @as(i32, @intCast(rows / 2)) - @as(i32, @intCast(pattern.info.height / 2));
+
+        patterns.applyPattern(&pattern, grid, rows, cols, offset_x, offset_y);
+
+        try render.print("Loaded pattern: {s} ({}x{})\n", .{ pattern.info.name, pattern.info.width, pattern.info.height });
+    } else {
+        // Initialize with random pattern
+        var prng = std.Random.DefaultPrng.init(@as(u64, @truncate(@as(u128, @bitCast(std.time.nanoTimestamp())))));
+        const rand = prng.random();
+        game.initializeRandomGrid(grid, constants.DEFAULT_INITIAL_DENSITY, rand);
+    }
 
     return GameState{
         .grid = grid,
@@ -205,7 +240,8 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Parse CLI arguments
-    const args = try cli.parseArgs(allocator);
+    var args = try cli.parseArgs(allocator);
+    defer args.deinit(allocator);
 
     // Initialize renderer
     var render = renderer.Renderer.init();
@@ -230,8 +266,8 @@ pub fn main() !void {
     // Persist configuration for future runs
     config.writeConfig(game_config.rows, game_config.cols, game_config.generations, game_config.delay_ms) catch {};
 
-    // Initialize game state with grids and random pattern
-    var game_state = try initializeGameState(game_config, &render, allocator);
+    // Initialize game state with grids and pattern
+    var game_state = try initializeGameState(game_config, args.pattern_file, &render, allocator);
     defer game_state.deinit();
 
     // Run the main simulation loop
