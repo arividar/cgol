@@ -114,9 +114,22 @@ fn parseRLE(allocator: std.mem.Allocator, content: []const u8) PatternError!Patt
                 allocator.free(info.name);
                 info.name = try allocator.dupe(u8, line[3..]);
             } else if (std.mem.startsWith(u8, line, "#O ")) {
+                if (info.author) |prev| allocator.free(prev);
                 info.author = try allocator.dupe(u8, line[3..]);
             } else if (std.mem.startsWith(u8, line, "#C ")) {
-                info.description = try allocator.dupe(u8, line[3..]);
+                const new_text = line[3..];
+                if (info.description) |prev| {
+                    const sep = " ";
+                    const combined_len = prev.len + sep.len + new_text.len;
+                    var combined = try allocator.alloc(u8, combined_len);
+                    @memcpy(combined[0..prev.len], prev);
+                    @memcpy(combined[prev.len .. prev.len + sep.len], sep);
+                    @memcpy(combined[prev.len + sep.len ..], new_text);
+                    allocator.free(prev);
+                    info.description = combined;
+                } else {
+                    info.description = try allocator.dupe(u8, new_text);
+                }
             }
             continue;
         }
@@ -136,6 +149,7 @@ fn parseRLE(allocator: std.mem.Allocator, content: []const u8) PatternError!Patt
                     }
                 } else if (std.mem.eql(u8, part, "rule")) {
                     if (parts.next()) |rule_str| {
+                        if (info.rule_allocated) allocator.free(info.rule);
                         info.rule = try allocator.dupe(u8, rule_str);
                         info.rule_allocated = true;
                     }
@@ -240,6 +254,7 @@ fn parsePlaintext(allocator: std.mem.Allocator, content: []const u8) PatternErro
                 allocator.free(info.name);
                 info.name = try allocator.dupe(u8, line[7..]);
             } else if (std.mem.startsWith(u8, line, "!Author: ")) {
+                if (info.author) |prev| allocator.free(prev);
                 info.author = try allocator.dupe(u8, line[9..]);
             }
             continue;
@@ -296,7 +311,19 @@ fn parseLife106(allocator: std.mem.Allocator, content: []const u8) PatternError!
         // Comments
         if (line[0] == '#') {
             if (std.mem.startsWith(u8, line, "#D ")) {
-                info.description = try allocator.dupe(u8, line[3..]);
+                const new_text = line[3..];
+                if (info.description) |prev| {
+                    const sep = " ";
+                    const combined_len = prev.len + sep.len + new_text.len;
+                    var combined = try allocator.alloc(u8, combined_len);
+                    @memcpy(combined[0..prev.len], prev);
+                    @memcpy(combined[prev.len .. prev.len + sep.len], sep);
+                    @memcpy(combined[prev.len + sep.len ..], new_text);
+                    allocator.free(prev);
+                    info.description = combined;
+                } else {
+                    info.description = try allocator.dupe(u8, new_text);
+                }
             } else if (std.mem.startsWith(u8, line, "#N ")) {
                 allocator.free(info.name);
                 info.name = try allocator.dupe(u8, line[3..]);
