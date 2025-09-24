@@ -77,16 +77,16 @@ pub const HELP_TEXT: []const u8 =
     "  cgol [options]\n" ++
     "  cgol <rows> <cols> <generations> <delay_ms>\n\n" ++
     "Options:\n" ++
-    "  --height <rows>          Board height (also --height=40)\n" ++
-    "  --width <cols>           Board width (also --width=60)\n" ++
-    "  --generations <n>        0 for infinite (also --generations=0)\n" ++
-    "  --delay <ms>             Delay per generation in ms (also --delay=120)\n" ++
-    "  --pattern <file>         Load pattern from file (also --pattern=glider.rle)\n" ++
-    "  --save <file>            Save current state to file (also --save=checkpoint.cgol)\n" ++
-    "  --load <file>            Load saved state from file (also --load=checkpoint.cgol)\n" ++
-    "  --description <text>     Description for save file (also --description=\"My pattern\")\n" ++
-    "  --auto-save-every <n>    Auto-save every N generations (also --auto-save-every=100)\n" ++
-    "  --save-prefix <prefix>   Prefix for auto-save files (also --save-prefix=backup_)\n" ++
+    "  --height <rows>          Board height\n" ++
+    "  --width <cols>           Board width\n" ++
+    "  --generations <n>        0 for infinite\n" ++
+    "  --delay <ms>             Delay per generation in ms\n" ++
+    "  --pattern <file>         Load pattern from file\n" ++
+    "  --save <file>            Save current state to file\n" ++
+    "  --load <file>            Load saved state from file\n" ++
+    "  --description <text>     Description for save file\n" ++
+    "  --auto-save-every <n>    Auto-save every N generations\n" ++
+    "  --save-prefix <prefix>   Prefix for auto-save files\n" ++
     "  --list-saves             List available save files in saves/ directory\n" ++
     "  -p, --prompt-for-config  Force interactive prompts for missing values\n" ++
     "  -h, --help               Show this help and exit\n\n" ++
