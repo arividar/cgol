@@ -82,12 +82,22 @@ pub const HELP_TEXT: []const u8 =
     "  --generations <n>        0 for infinite (also --generations=0)\n" ++
     "  --delay <ms>             Delay per generation in ms (also --delay=120)\n" ++
     "  --pattern <file>         Load pattern from file (also --pattern=glider.rle)\n" ++
+    "  --save <file>            Save current state to file (also --save=checkpoint.cgol)\n" ++
+    "  --load <file>            Load saved state from file (also --load=checkpoint.cgol)\n" ++
+    "  --description <text>     Description for save file (also --description=\"My pattern\")\n" ++
+    "  --auto-save-every <n>    Auto-save every N generations (also --auto-save-every=100)\n" ++
+    "  --save-prefix <prefix>   Prefix for auto-save files (also --save-prefix=backup_)\n" ++
+    "  --list-saves             List available save files in saves/ directory\n" ++
     "  -p, --prompt-for-config  Force interactive prompts for missing values\n" ++
     "  -h, --help               Show this help and exit\n\n" ++
     "Pattern Formats:\n" ++
     "  .rle                     Run Length Encoded format\n" ++
     "  .cells                   Plaintext format\n" ++
     "  .life, .lif              Life 1.06 format\n\n" ++
+    "Save/Load:\n" ++
+    "  Save files use .cgol extension and TOML format\n" ++
+    "  Default save directory: saves/\n" ++
+    "  Auto-save creates timestamped files with optional prefix\n\n" ++
     "Configuration:\n" ++
     "  Reads/writes cgol.toml at repo root. Missing/partial values prompt.\n";
 
@@ -107,3 +117,12 @@ pub const NEWLINE_CHAR: u8 = '\n';
 pub const MAX_PATTERN_FILE_SIZE: usize = 1024 * 1024; // 1MB max pattern file size
 pub const PATTERN_DEFAULT_OFFSET_X: i32 = 0;
 pub const PATTERN_DEFAULT_OFFSET_Y: i32 = 0;
+
+// === Save/Load Constants ===
+pub const SAVE_FILE_EXTENSION: []const u8 = ".cgol";
+pub const SAVE_FILE_VERSION: []const u8 = "1.0";
+pub const SAVE_DIR_DEFAULT: []const u8 = "saves";
+pub const AUTO_SAVE_PREFIX: []const u8 = "auto_";
+pub const MAX_SAVE_DESCRIPTION_LEN: usize = 256;
+pub const MAX_SAVES_TO_LIST: usize = 50;
+pub const MAX_SAVE_FILE_SIZE: usize = 10 * 1024 * 1024; // 10MB max save file size
