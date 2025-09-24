@@ -9,10 +9,30 @@ pub const CliArgs = struct {
     delay_ms: ?u64 = null,
     pattern_file: ?[]const u8 = null,
     show_help: bool = false,
+    
+    // Save/load fields
+    save_file: ?[]const u8 = null,
+    load_file: ?[]const u8 = null,
+    save_description: ?[]const u8 = null,
+    auto_save_every: ?u64 = null,
+    save_prefix: ?[]const u8 = null,
+    list_saves: bool = false,
 
     pub fn deinit(self: *CliArgs, allocator: std.mem.Allocator) void {
         if (self.pattern_file) |pattern_file| {
             allocator.free(pattern_file);
+        }
+        if (self.save_file) |save_file| {
+            allocator.free(save_file);
+        }
+        if (self.load_file) |load_file| {
+            allocator.free(load_file);
+        }
+        if (self.save_description) |save_description| {
+            allocator.free(save_description);
+        }
+        if (self.save_prefix) |save_prefix| {
+            allocator.free(save_prefix);
         }
     }
 };
@@ -109,6 +129,82 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
                 result.pattern_file = try allocator.dupe(u8, args[i + 1]);
                 i += 1;
             }
+            continue;
+        }
+
+        // Save/load options
+        if (std.mem.startsWith(u8, a, "--save=")) {
+            const vstr = a["--save=".len..];
+            result.save_file = try allocator.dupe(u8, vstr);
+            continue;
+        }
+
+        if (std.mem.eql(u8, a, "--save")) {
+            if (i + 1 < args.len) {
+                result.save_file = try allocator.dupe(u8, args[i + 1]);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, a, "--load=")) {
+            const vstr = a["--load=".len..];
+            result.load_file = try allocator.dupe(u8, vstr);
+            continue;
+        }
+
+        if (std.mem.eql(u8, a, "--load")) {
+            if (i + 1 < args.len) {
+                result.load_file = try allocator.dupe(u8, args[i + 1]);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, a, "--description=")) {
+            const vstr = a["--description=".len..];
+            result.save_description = try allocator.dupe(u8, vstr);
+            continue;
+        }
+
+        if (std.mem.eql(u8, a, "--description")) {
+            if (i + 1 < args.len) {
+                result.save_description = try allocator.dupe(u8, args[i + 1]);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, a, "--auto-save-every=")) {
+            const vstr = a["--auto-save-every=".len..];
+            result.auto_save_every = std.fmt.parseUnsigned(u64, vstr, constants.DECIMAL_BASE) catch null;
+            continue;
+        }
+
+        if (std.mem.eql(u8, a, "--auto-save-every")) {
+            if (i + 1 < args.len) {
+                result.auto_save_every = std.fmt.parseUnsigned(u64, args[i + 1], constants.DECIMAL_BASE) catch null;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, a, "--save-prefix=")) {
+            const vstr = a["--save-prefix=".len..];
+            result.save_prefix = try allocator.dupe(u8, vstr);
+            continue;
+        }
+
+        if (std.mem.eql(u8, a, "--save-prefix")) {
+            if (i + 1 < args.len) {
+                result.save_prefix = try allocator.dupe(u8, args[i + 1]);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, a, "--list-saves")) {
+            result.list_saves = true;
             continue;
         }
 
