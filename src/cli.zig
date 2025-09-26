@@ -233,7 +233,152 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CliArgs {
     return result;
 }
 
+/// Validation error for CLI arguments
+pub const CliValidationError = error{
+    ConflictingSaveLoad,
+    InvalidSaveFile,
+    InvalidLoadFile,
+    InvalidAutoSaveInterval,
+    SavePrefixWithoutAutoSave,
+    DescriptionWithoutSave,
+};
+
+/// Validate CLI arguments for logical consistency
+pub fn validateArgs(args: CliArgs) CliValidationError!void {
+    // Check for conflicting save + load options
+    if (args.save_file != null and args.load_file != null) {
+        return CliValidationError.ConflictingSaveLoad;
+    }
+    
+    // Validate save file path
+    if (args.save_file) |save_file| {
+        if (save_file.len == 0) {
+            return CliValidationError.InvalidSaveFile;
+        }
+    }
+    
+    // Validate load file path
+    if (args.load_file) |load_file| {
+        if (load_file.len == 0) {
+            return CliValidationError.InvalidLoadFile;
+        }
+    }
+    
+    // Auto-save interval should be reasonable
+    if (args.auto_save_every) |interval| {
+        if (interval == 0) {
+            return CliValidationError.InvalidAutoSaveInterval;
+        }
+    }
+    
+    // Save prefix only makes sense with auto-save
+    if (args.save_prefix != null and args.auto_save_every == null) {
+        return CliValidationError.SavePrefixWithoutAutoSave;
+    }
+    
+    // Description only makes sense with save
+    if (args.save_description != null and args.save_file == null and args.auto_save_every == null) {
+        return CliValidationError.DescriptionWithoutSave;
+    }
+}
+
 /// Print help message
 pub fn printHelp(renderer: anytype) !void {
     try renderer.print(constants.HELP_TEXT, .{});
+}
+
+// === UNIT TESTS ===
+
+test "CLI validation - basic valid args" {
+    const args = CliArgs{};
+    try validateArgs(args);
+}
+
+test "CLI validation - conflicting save and load" {
+    var allocator = std.testing.allocator;
+    
+    var args = CliArgs{
+        .save_file = try allocator.dupe(u8, "test.cgol"),
+        .load_file = try allocator.dupe(u8, "test2.cgol"),
+    };
+    defer args.deinit(allocator);
+    
+    try std.testing.expectError(CliValidationError.ConflictingSaveLoad, validateArgs(args));
+}
+
+test "CLI validation - empty save file" {
+    var allocator = std.testing.allocator;
+    
+    var args = CliArgs{
+        .save_file = try allocator.dupe(u8, ""),
+    };
+    defer args.deinit(allocator);
+    
+    try std.testing.expectError(CliValidationError.InvalidSaveFile, validateArgs(args));
+}
+
+test "CLI validation - empty load file" {
+    var allocator = std.testing.allocator;
+    
+    var args = CliArgs{
+        .load_file = try allocator.dupe(u8, ""),
+    };
+    defer args.deinit(allocator);
+    
+    try std.testing.expectError(CliValidationError.InvalidLoadFile, validateArgs(args));
+}
+
+test "CLI validation - zero auto-save interval" {
+    const args = CliArgs{
+        .auto_save_every = 0,
+    };
+    
+    try std.testing.expectError(CliValidationError.InvalidAutoSaveInterval, validateArgs(args));
+}
+
+test "CLI validation - save prefix without auto-save" {
+    var allocator = std.testing.allocator;
+    
+    var args = CliArgs{
+        .save_prefix = try allocator.dupe(u8, "backup_"),
+    };
+    defer args.deinit(allocator);
+    
+    try std.testing.expectError(CliValidationError.SavePrefixWithoutAutoSave, validateArgs(args));
+}
+
+test "CLI validation - description without save" {
+    var allocator = std.testing.allocator;
+    
+    var args = CliArgs{
+        .save_description = try allocator.dupe(u8, "test description"),
+    };
+    defer args.deinit(allocator);
+    
+    try std.testing.expectError(CliValidationError.DescriptionWithoutSave, validateArgs(args));
+}
+
+test "CLI validation - valid save with description" {
+    var allocator = std.testing.allocator;
+    
+    var args = CliArgs{
+        .save_file = try allocator.dupe(u8, "test.cgol"),
+        .save_description = try allocator.dupe(u8, "test description"),
+    };
+    defer args.deinit(allocator);
+    
+    try validateArgs(args);
+}
+
+test "CLI validation - valid auto-save with prefix and description" {
+    var allocator = std.testing.allocator;
+    
+    var args = CliArgs{
+        .auto_save_every = 100,
+        .save_prefix = try allocator.dupe(u8, "backup_"),
+        .save_description = try allocator.dupe(u8, "auto-save test"),
+    };
+    defer args.deinit(allocator);
+    
+    try validateArgs(args);
 }
