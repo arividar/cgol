@@ -175,8 +175,34 @@ pub fn decompressGrid(compressed: []const u8, grid: []u8, rows: usize, cols: usi
 /// Generate current timestamp as ISO 8601 string
 fn getCurrentTimestamp(allocator: std.mem.Allocator) ![]u8 {
     const timestamp = std.time.timestamp();
-    // For now, use a simple timestamp format
-    return std.fmt.allocPrint(allocator, "{}", .{timestamp});
+    // Convert to a more readable ISO-like format
+    return std.fmt.allocPrint(allocator, "{d}", .{timestamp});
+}
+
+/// Create saves directory if it doesn't exist
+pub fn ensureSaveDirectory(directory: []const u8) SaveLoadError!void {
+    std.fs.cwd().makeDir(directory) catch |err| {
+        return switch (err) {
+            error.PathAlreadyExists => {}, // Directory already exists, this is fine
+            error.AccessDenied => SaveLoadError.PermissionDenied,
+            else => SaveLoadError.SerializationFailed,
+        };
+    };
+}
+
+/// Get full path for a save file in the default saves directory
+pub fn getSaveFilePath(filename: []const u8, allocator: std.mem.Allocator) ![]u8 {
+    // Ensure the filename has the correct extension
+    const name_with_ext = if (std.mem.endsWith(u8, filename, constants.SAVE_FILE_EXTENSION))
+        filename
+    else
+        try std.fmt.allocPrint(allocator, "{s}{s}", .{ filename, constants.SAVE_FILE_EXTENSION });
+    
+    if (name_with_ext.ptr != filename.ptr) {
+        defer allocator.free(name_with_ext);
+    }
+    
+    return std.fmt.allocPrint(allocator, "{s}/{s}", .{ constants.SAVE_DIR_DEFAULT, name_with_ext });
 }
 
 /// Save game state to TOML file
@@ -357,6 +383,57 @@ pub fn loadGameState(
     return result;
 }
 
+/// Convenience wrapper matching the implementation plan signature
+pub fn saveGameStateSimple(
+    filepath: []const u8,
+    grid: []const u8,
+    rows: usize,
+    cols: usize,
+    generation: u64,
+    config: GameConfig,
+    description: ?[]const u8,
+    allocator: std.mem.Allocator,
+) SaveLoadError!void {
+    const save_config = SaveConfig{
+        .description = description,
+        .original_pattern = null,
+        .compression_enabled = true,
+    };
+    
+    return saveGameState(
+        filepath,
+        grid,
+        rows,
+        cols,
+        generation,
+        config.generations,
+        config.delay_ms,
+        save_config,
+        allocator,
+    );
+}
+
+/// Convenience wrapper for loading with minimal config
+pub fn loadGameStateSimple(
+    filepath: []const u8,
+    allocator: std.mem.Allocator,
+) SaveLoadError!SavedGameState {
+    const load_config = LoadConfig{
+        .validate_dimensions = true,
+        .allow_version_mismatch = false,
+    };
+    
+    return loadGameState(filepath, load_config, allocator);
+}
+
+/// Game configuration struct for compatibility with the implementation plan
+pub const GameConfig = struct {
+    rows: usize,
+    cols: usize,
+    generations: u64,
+    delay_ms: u64,
+};
+
 /// List available save files in a directory
 pub fn listSaveFiles(directory: []const u8, allocator: std.mem.Allocator) ![][]const u8 {
     var dir = std.fs.cwd().openDir(directory, .{}) catch |err| {
@@ -386,7 +463,96 @@ pub fn listSaveFiles(directory: []const u8, allocator: std.mem.Allocator) ![][]c
     return save_files.toOwnedSlice();
 }
 
-// Tests
+test "save and load game state integration" {
+    const allocator = std.testing.allocator;
+    const test_filename = "test_save.cgol";
+    
+    // Clean up any existing test file
+    std.fs.cwd().deleteFile(test_filename) catch {};
+    defer std.fs.cwd().deleteFile(test_filename) catch {};
+    
+    // Create test grid
+    const rows: usize = 3;
+    const cols: usize = 3; 
+    const grid = [_]u8{
+        constants.CELL_ALIVE, constants.CELL_DEAD, constants.CELL_ALIVE,
+        constants.CELL_DEAD, constants.CELL_ALIVE, constants.CELL_DEAD,
+        constants.CELL_DEAD, constants.CELL_DEAD, constants.CELL_ALIVE,
+    };
+    
+    // Save game state
+    const save_config = SaveConfig{
+        .description = "Test save",
+        .original_pattern = "test_pattern.rle",
+    };
+    
+    try saveGameState(
+        test_filename,
+        &grid,
+        rows,
+        cols,
+        42, // generation
+        100, // generations
+        150, // delay_ms
+        save_config,
+        allocator,
+    );
+    
+    // Load game state
+    const load_config = LoadConfig{};
+    var loaded_state = try loadGameState(test_filename, load_config, allocator);
+    defer loaded_state.deinit(allocator);
+    
+    // Verify metadata
+    try std.testing.expect(loaded_state.current_generation == 42);
+    try std.testing.expect(loaded_state.rows == rows);
+    try std.testing.expect(loaded_state.cols == cols);
+    try std.testing.expect(loaded_state.generations == 100);
+    try std.testing.expect(loaded_state.delay_ms == 150);
+    try std.testing.expectEqualStrings("Test save", loaded_state.description.?);
+    try std.testing.expectEqualStrings("test_pattern.rle", loaded_state.original_pattern.?);
+    
+    // Decompress and verify grid data
+    const decompressed_grid = try allocator.alloc(u8, rows * cols);
+    defer allocator.free(decompressed_grid);
+    
+    try decompressGrid(loaded_state.grid_data, decompressed_grid, rows, cols);
+    try std.testing.expectEqualSlices(u8, &grid, decompressed_grid);
+}
+
+test "listSaveFiles functionality" {
+    const allocator = std.testing.allocator;
+    
+    // Test listing files in a directory that may not exist
+    const save_files = listSaveFiles("nonexistent_directory", allocator) catch &[_][]const u8{};
+    defer {
+        for (save_files) |file| {
+            allocator.free(file);
+        }
+        allocator.free(save_files);
+    }
+    
+    // Should return empty list for non-existent directory
+    try std.testing.expect(save_files.len == 0);
+}
+
+test "error handling for corrupted data" {
+    const allocator = std.testing.allocator;
+    const test_filename = "corrupted_test.cgol";
+    
+    // Create a corrupted save file
+    const corrupted_content = "invalid toml content\n[broken";
+    const file = try std.fs.cwd().createFile(test_filename, .{});
+    defer file.close();
+    defer std.fs.cwd().deleteFile(test_filename) catch {};
+    
+    try file.writeAll(corrupted_content);
+    
+    const load_config = LoadConfig{};
+    const result = loadGameState(test_filename, load_config, allocator);
+    try std.testing.expectError(SaveLoadError.CorruptedData, result);
+}
+
 test "compress and decompress grid" {
     const allocator = std.testing.allocator;
     
