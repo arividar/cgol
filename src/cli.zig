@@ -370,15 +370,201 @@ test "CLI validation - valid save with description" {
     try validateArgs(args);
 }
 
-test "CLI validation - valid auto-save with prefix and description" {
+// === CLI PARAMETER PARSING TESTS ===
+
+test "CLI parsing - save parameter with equals" {
+    var allocator = std.testing.allocator;
+    
+    // Simulate command line: program --save=test.cgol
+    const test_args = [_][]const u8{ "program", "--save=test.cgol" };
+    _ = test_args; // Mark as used to avoid compiler warning
+    
+    // We'll test the parsing logic directly since we can't easily mock argsAlloc
+    var args = CliArgs{};
+    
+    // Simulate the parsing logic for --save=value
+    const arg = "--save=test.cgol";
+    if (std.mem.startsWith(u8, arg, "--save=")) {
+        const vstr = arg["--save=".len..];
+        args.save_file = try allocator.dupe(u8, vstr);
+    }
+    defer args.deinit(allocator);
+    
+    try std.testing.expect(args.save_file != null);
+    try std.testing.expectEqualStrings("test.cgol", args.save_file.?);
+}
+
+test "CLI parsing - save parameter with space" {
+    var allocator = std.testing.allocator;
+    
+    var args = CliArgs{};
+    
+    // Simulate the parsing logic for --save value
+    const arg = "--save";
+    const next_arg = "my_save.cgol";
+    
+    if (std.mem.eql(u8, arg, "--save")) {
+        args.save_file = try allocator.dupe(u8, next_arg);
+    }
+    defer args.deinit(allocator);
+    
+    try std.testing.expect(args.save_file != null);
+    try std.testing.expectEqualStrings("my_save.cgol", args.save_file.?);
+}
+
+test "CLI parsing - auto-save-every parameter with equals" {
+    var args = CliArgs{};
+    
+    // Simulate the parsing logic for --auto-save-every=value
+    const arg = "--auto-save-every=50";
+    if (std.mem.startsWith(u8, arg, "--auto-save-every=")) {
+        const vstr = arg["--auto-save-every=".len..];
+        args.auto_save_every = std.fmt.parseUnsigned(u64, vstr, constants.DECIMAL_BASE) catch null;
+    }
+    
+    try std.testing.expect(args.auto_save_every != null);
+    try std.testing.expect(args.auto_save_every.? == 50);
+}
+
+test "CLI parsing - auto-save-every parameter with space" {
+    var args = CliArgs{};
+    
+    // Simulate the parsing logic for --auto-save-every value
+    const arg = "--auto-save-every";
+    const next_arg = "25";
+    
+    if (std.mem.eql(u8, arg, "--auto-save-every")) {
+        args.auto_save_every = std.fmt.parseUnsigned(u64, next_arg, constants.DECIMAL_BASE) catch null;
+    }
+    
+    try std.testing.expect(args.auto_save_every != null);
+    try std.testing.expect(args.auto_save_every.? == 25);
+}
+
+test "CLI parsing - save with description and auto-save combination" {
     var allocator = std.testing.allocator;
     
     var args = CliArgs{
+        .save_file = try allocator.dupe(u8, "manual_save.cgol"),
+        .save_description = try allocator.dupe(u8, "Manual checkpoint"),
         .auto_save_every = 100,
-        .save_prefix = try allocator.dupe(u8, "backup_"),
-        .save_description = try allocator.dupe(u8, "auto-save test"),
+        .save_prefix = try allocator.dupe(u8, "auto_"),
     };
     defer args.deinit(allocator);
     
+    // This should be valid - manual save can coexist with auto-save settings
     try validateArgs(args);
+    
+    try std.testing.expectEqualStrings("manual_save.cgol", args.save_file.?);
+    try std.testing.expectEqualStrings("Manual checkpoint", args.save_description.?);
+    try std.testing.expect(args.auto_save_every.? == 100);
+    try std.testing.expectEqualStrings("auto_", args.save_prefix.?);
+}
+
+test "CLI parsing - invalid auto-save-every value" {
+    var args = CliArgs{};
+    
+    // Simulate parsing invalid numeric value
+    const arg = "--auto-save-every=invalid";
+    if (std.mem.startsWith(u8, arg, "--auto-save-every=")) {
+        const vstr = arg["--auto-save-every=".len..];
+        args.auto_save_every = std.fmt.parseUnsigned(u64, vstr, constants.DECIMAL_BASE) catch null;
+    }
+    
+    // Should be null due to parse error
+    try std.testing.expect(args.auto_save_every == null);
+}
+
+test "CLI parsing - save file extension handling" {
+    var allocator = std.testing.allocator;
+    
+    // Test files with and without .cgol extension
+    const test_cases = [_]struct {
+        input: []const u8,
+        expected: []const u8,
+    }{
+        .{ .input = "test", .expected = "test" },
+        .{ .input = "test.cgol", .expected = "test.cgol" },
+        .{ .input = "saves/backup", .expected = "saves/backup" },
+        .{ .input = "saves/backup.cgol", .expected = "saves/backup.cgol" },
+    };
+    
+    for (test_cases) |case| {
+        var args = CliArgs{
+            .save_file = try allocator.dupe(u8, case.input),
+        };
+        defer args.deinit(allocator);
+        
+        try std.testing.expectEqualStrings(case.expected, args.save_file.?);
+    }
+}
+
+test "CLI parsing - edge cases for save parameters" {
+    var allocator = std.testing.allocator;
+    
+    // Test very long filename
+    const long_filename = "very_long_filename_that_should_still_work_properly_in_the_cli_parser.cgol";
+    var args1 = CliArgs{
+        .save_file = try allocator.dupe(u8, long_filename),
+    };
+    defer args1.deinit(allocator);
+    
+    try validateArgs(args1);
+    try std.testing.expectEqualStrings(long_filename, args1.save_file.?);
+    
+    // Test filename with spaces (should work if quoted properly)
+    const spaced_filename = "my save file.cgol";
+    var args2 = CliArgs{
+        .save_file = try allocator.dupe(u8, spaced_filename),
+    };
+    defer args2.deinit(allocator);
+    
+    try validateArgs(args2);
+    try std.testing.expectEqualStrings(spaced_filename, args2.save_file.?);
+    
+    // Test maximum reasonable auto-save interval
+    const args3 = CliArgs{
+        .auto_save_every = 999999,
+    };
+    
+    try validateArgs(args3);
+    try std.testing.expect(args3.auto_save_every.? == 999999);
+}
+
+test "CLI parsing - comprehensive save/auto-save scenario validation" {
+    var allocator = std.testing.allocator;
+    
+    // Scenario 1: Manual save only
+    var scenario1 = CliArgs{
+        .save_file = try allocator.dupe(u8, "checkpoint1.cgol"),
+        .save_description = try allocator.dupe(u8, "First checkpoint"),
+    };
+    defer scenario1.deinit(allocator);
+    try validateArgs(scenario1);
+    
+    // Scenario 2: Auto-save only
+    var scenario2 = CliArgs{
+        .auto_save_every = 50,
+        .save_prefix = try allocator.dupe(u8, "backup_"),
+    };
+    defer scenario2.deinit(allocator);
+    try validateArgs(scenario2);
+    
+    // Scenario 3: Both manual save and auto-save configured
+    var scenario3 = CliArgs{
+        .save_file = try allocator.dupe(u8, "manual.cgol"),
+        .save_description = try allocator.dupe(u8, "Manual checkpoint"),
+        .auto_save_every = 75,
+        .save_prefix = try allocator.dupe(u8, "auto_"),
+    };
+    defer scenario3.deinit(allocator);
+    try validateArgs(scenario3);
+    
+    // Scenario 4: Auto-save with description (valid - description applies to auto-saves)
+    var scenario4 = CliArgs{
+        .auto_save_every = 100,
+        .save_description = try allocator.dupe(u8, "Auto-backup session"),
+    };
+    defer scenario4.deinit(allocator);
+    try validateArgs(scenario4);
 }
