@@ -18,10 +18,8 @@ pub fn addWrap(i: usize, delta: i32, max: usize) usize {
 /// Count live neighbors for a cell at position (r, c)
 pub fn neighborCount(grid: []const u8, rows: usize, cols: usize, r: usize, c: usize) u8 {
     var n: u8 = 0;
-    var dr: i32 = -1;
-    while (dr <= 1) : (dr += 1) {
-        var dc: i32 = -1;
-        while (dc <= 1) : (dc += 1) {
+    for ([_]i32{ -1, 0, 1 }) |dr| {
+        for ([_]i32{ -1, 0, 1 }) |dc| {
             if (dr == 0 and dc == 0) continue;
             const rr = addWrap(r, dr, rows);
             const cc = addWrap(c, dc, cols);
