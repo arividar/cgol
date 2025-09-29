@@ -242,28 +242,27 @@ pub fn main() !void {
     // Parse CLI arguments
     var args = try cli.parseArgs(allocator);
     defer args.deinit(allocator);
-    
+
     // Validate CLI arguments for logical consistency
     cli.validateArgs(args) catch |err| {
-        const stderr = std.io.getStdErr().writer();
         switch (err) {
             cli.CliValidationError.ConflictingSaveLoad => {
-                try stderr.print("Error: Cannot use both --save and --load options together\n", .{});
+                std.debug.print("Error: Cannot use both --save and --load options together\n", .{});
             },
             cli.CliValidationError.InvalidSaveFile => {
-                try stderr.print("Error: Save file path cannot be empty\n", .{});
+                std.debug.print("Error: Save file path cannot be empty\n", .{});
             },
             cli.CliValidationError.InvalidLoadFile => {
-                try stderr.print("Error: Load file path cannot be empty\n", .{});
+                std.debug.print("Error: Load file path cannot be empty\n", .{});
             },
             cli.CliValidationError.InvalidAutoSaveInterval => {
-                try stderr.print("Error: Auto-save interval must be greater than 0\n", .{});
+                std.debug.print("Error: Auto-save interval must be greater than 0\n", .{});
             },
             cli.CliValidationError.SavePrefixWithoutAutoSave => {
-                try stderr.print("Error: --save-prefix requires --auto-save-every\n", .{});
+                std.debug.print("Error: --save-prefix requires --auto-save-every\n", .{});
             },
             cli.CliValidationError.DescriptionWithoutSave => {
-                try stderr.print("Error: --description requires --save or --auto-save-every\n", .{});
+                std.debug.print("Error: --description requires --save or --auto-save-every\n", .{});
             },
         }
         std.process.exit(1);
